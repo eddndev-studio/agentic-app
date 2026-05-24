@@ -1,7 +1,4 @@
 import 'package:agentic/core/router/app_router.dart';
-import 'package:agentic/features/auth/data/datasources/auth_datasource.dart';
-import 'package:agentic/features/auth/data/repositories/token_storage.dart';
-import 'package:agentic/features/auth/domain/entities/auth_tokens.dart';
 import 'package:agentic/features/auth/domain/entities/identity.dart';
 import 'package:agentic/features/auth/domain/repositories/auth_repository.dart';
 import 'package:agentic/features/auth/presentation/bloc/auth_bloc.dart';
@@ -17,19 +14,6 @@ class _MockAuthBloc extends MockBloc<AuthEvent, AuthState> implements AuthBloc {
 
 class _MockRepo extends Mock implements AuthRepository {}
 
-class _MockDs extends Mock implements AuthDatasource {}
-
-class _NoopStorage implements TokenStorage {
-  @override
-  Future<void> save(AuthTokens tokens) async {}
-
-  @override
-  Future<AuthTokens?> read() async => null;
-
-  @override
-  Future<void> clear() async {}
-}
-
 const _identity = Identity(userId: 'u1', orgId: 'o1', role: 'OWNER');
 
 Widget _host(AppRouter router, AuthBloc authBloc) =>
@@ -44,12 +28,7 @@ void main() {
 
   setUp(() {
     authBloc = _MockAuthBloc();
-    router = AppRouter(
-      authBloc: authBloc,
-      repository: _MockRepo(),
-      authDatasource: _MockDs(),
-      tokenStorage: _NoopStorage(),
-    );
+    router = AppRouter(authBloc: authBloc, repository: _MockRepo());
   });
 
   testWidgets('AuthInitial → Splash (CircularProgressIndicator)', (
@@ -82,22 +61,23 @@ void main() {
   });
 
   testWidgets(
-    'cambio Initial → Authenticated dispara redirect a HomePage',
+    'cambio de estado dispara refreshListenable y re-evalúa redirect',
     (tester) async {
+      // Stream que emite Unauthenticated → Authenticated. El router
+      // arranca en Initial (Splash); tras Unauthenticated va a /login;
+      // tras Authenticated, redirige a /home. Lo importante es que el
+      // último estado mande — eso valida que el stream se está
+      // consumiendo y el redirect re-evalúa.
       whenListen(
         authBloc,
         Stream<AuthState>.fromIterable(const <AuthState>[
+          AuthUnauthenticated(),
           AuthAuthenticated(_identity),
         ]),
         initialState: const AuthInitial(),
       );
 
       await tester.pumpWidget(_host(router, authBloc));
-      // Pump inicial: Splash.
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-      // El stream emite Authenticated → refreshListenable dispara
-      // redirect → /home.
       await tester.pumpAndSettle();
       expect(find.byType(HomePage), findsOneWidget);
     },
