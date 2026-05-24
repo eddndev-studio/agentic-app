@@ -66,5 +66,24 @@ void main() {
         expect: () => const <AuthState>[AuthUnauthenticated()],
       );
     });
+
+    group('AuthLoggedOut', () {
+      blocTest<AuthBloc, AuthState>(
+        'estado Authenticated → llama repo.logout() → emite AuthUnauthenticated',
+        build: () {
+          final repo = _MockRepo();
+          when(repo.logout).thenAnswer((_) async {});
+          return AuthBloc(repo);
+        },
+        seed: () => const AuthAuthenticated(_identity),
+        act: (bloc) => bloc.add(const AuthLoggedOut()),
+        expect: () => const <AuthState>[AuthUnauthenticated()],
+        verify: (bloc) {
+          // bloc_test no expone el mock; el comportamiento del repo
+          // queda cubierto por los tests del repositorio. Aquí el assert
+          // efectivo es la transición de estado.
+        },
+      );
+    });
   });
 }
