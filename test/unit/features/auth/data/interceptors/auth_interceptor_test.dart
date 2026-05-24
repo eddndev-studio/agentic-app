@@ -5,6 +5,7 @@ import 'package:agentic/features/auth/data/datasources/auth_datasource.dart';
 import 'package:agentic/features/auth/data/interceptors/auth_interceptor.dart';
 import 'package:agentic/features/auth/data/repositories/token_storage.dart';
 import 'package:agentic/features/auth/domain/entities/auth_tokens.dart';
+import 'package:agentic/features/auth/domain/failures/auth_failure.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -206,6 +207,45 @@ void main() {
         );
 
         expect(unrecoverableCalls, 0);
+      },
+    );
+  });
+
+  group('AuthInterceptor.onError 401 con refresh fallido', () {
+    test(
+      'purga storage, invoca onUnrecoverable y propaga el 401 original',
+      () async {
+        await storage.save(
+          const AuthTokens(
+            accessToken: 'OLD-ACCESS',
+            refreshToken: 'REVOKED-REFRESH',
+            tokenType: 'Bearer',
+            expiresInSeconds: 900,
+          ),
+        );
+
+        adapter.handler = (_) async => _jsonBody(401, <String, dynamic>{});
+        when(() => refreshDs.refresh('REVOKED-REFRESH'))
+            .thenThrow(const InvalidCredentialsFailure());
+
+        await expectLater(
+          dio.get<dynamic>('/bots/abc'),
+          throwsA(
+            isA<DioException>().having(
+              (e) => e.response?.statusCode,
+              'statusCode',
+              401,
+            ),
+          ),
+        );
+
+        // No hubo retry: solo el hit original llegó al transporte.
+        expect(adapter.captured, hasLength(1));
+        // Storage purgado tras refresh fallido.
+        expect(await storage.read(), isNull);
+        // Señal al exterior emitida exactamente una vez.
+        expect(unrecoverableCalls, 1);
+        verify(() => refreshDs.refresh('REVOKED-REFRESH')).called(1);
       },
     );
   });
