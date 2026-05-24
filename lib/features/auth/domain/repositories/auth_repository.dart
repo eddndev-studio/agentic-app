@@ -17,4 +17,10 @@ abstract interface class AuthRepository {
   /// validarlos contra el backend. El bloc lo usa para evitar un golpe
   /// inútil a `/auth/me` cuando no hay sesión que verificar.
   Future<bool> hasTokens();
+
+  /// Logout: revoca la familia contra el backend (best-effort) y purga
+  /// los tokens locales. Idempotente — si no hay tokens persistidos,
+  /// no-op. El cliente queda en estado sin sesión incluso si la
+  /// revocación remota falla por red.
+  Future<void> logout();
 }
