@@ -11,6 +11,12 @@ import '../mappers/auth_mapper.dart';
 /// cruda. El repositorio y el bloc consumen failures de dominio.
 abstract interface class AuthDatasource {
   Future<AuthTokens> login({required String email, required String password});
+
+  /// Canjea un refresh por un par nuevo (S02 RF#3: rotación por familia).
+  /// 401 ⇒ `InvalidCredentialsFailure` — el backend no distingue refresh
+  /// expirado de familia revocada por fuga; el cliente trata ambos como
+  /// "sesión inválida, re-login".
+  Future<AuthTokens> refresh(String refreshToken);
 }
 
 /// Implementación contra dio. Se inyecta una instancia ya configurada con
@@ -31,6 +37,25 @@ class DioAuthDatasource implements AuthDatasource {
       final res = await _dio.post<Map<String, dynamic>>(
         '/auth/login',
         data: req.toJson(),
+      );
+      final body = res.data;
+      if (body == null) {
+        throw const UnknownAuthFailure();
+      }
+      return AuthMapper.tokenRespToEntity(TokenResp.fromJson(body));
+    } on DioException catch (e) {
+      throw _mapDioException(e);
+    } on FormatException {
+      throw const UnknownAuthFailure();
+    }
+  }
+
+  @override
+  Future<AuthTokens> refresh(String refreshToken) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/auth/refresh',
+        data: <String, dynamic>{'refresh_token': refreshToken},
       );
       final body = res.data;
       if (body == null) {
