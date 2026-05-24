@@ -1,0 +1,69 @@
+import 'package:dio/dio.dart';
+
+import '../../domain/entities/auth_tokens.dart';
+import '../../domain/failures/auth_failure.dart';
+import '../dto/login_dto.dart';
+import '../mappers/auth_mapper.dart';
+
+/// Puerto de datos para los endpoints de autenticación de S02.
+///
+/// Las implementaciones lanzan `AuthFailure` tipadas; nunca DioException
+/// cruda. El repositorio y el bloc consumen failures de dominio.
+abstract interface class AuthDatasource {
+  Future<AuthTokens> login({required String email, required String password});
+}
+
+/// Implementación contra dio. Se inyecta una instancia ya configurada con
+/// `baseUrl` apuntando al API de agentic-go; este datasource no toca
+/// configuración global.
+class DioAuthDatasource implements AuthDatasource {
+  DioAuthDatasource(this._dio);
+
+  final Dio _dio;
+
+  @override
+  Future<AuthTokens> login({
+    required String email,
+    required String password,
+  }) async {
+    final req = LoginReq(email: email, password: password);
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/auth/login',
+        data: req.toJson(),
+      );
+      final body = res.data;
+      if (body == null) {
+        throw const UnknownAuthFailure();
+      }
+      return AuthMapper.tokenRespToEntity(TokenResp.fromJson(body));
+    } on DioException catch (e) {
+      throw _mapDioException(e);
+    } on FormatException {
+      throw const UnknownAuthFailure();
+    }
+  }
+
+  /// Traduce DioException a la jerarquía sellada de AuthFailure.
+  ///
+  /// El catch del datasource concentra la traducción en un solo punto:
+  /// el llamador nunca decide entre status y exception type.
+  AuthFailure _mapDioException(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+        return const NetworkFailure();
+      case DioExceptionType.badResponse:
+        final status = e.response?.statusCode;
+        if (status == 401) return const InvalidCredentialsFailure();
+        if (status == 429) return const RateLimitedFailure();
+        return const UnknownAuthFailure();
+      case DioExceptionType.cancel:
+      case DioExceptionType.badCertificate:
+      case DioExceptionType.unknown:
+        return const UnknownAuthFailure();
+    }
+  }
+}
