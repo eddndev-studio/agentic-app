@@ -301,5 +301,48 @@ void main() {
       );
       verify(() => dio.get<Map<String, dynamic>>('/auth/me')).called(1);
     });
+
+    test('401 → InvalidCredentialsFailure (token inválido tras refresh)', () async {
+      when(() => dio.get<Map<String, dynamic>>('/auth/me')).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/auth/me'),
+          response: meHttpResp(401),
+          type: DioExceptionType.badResponse,
+        ),
+      );
+
+      await expectLater(ds.me(), throwsA(isA<InvalidCredentialsFailure>()));
+    });
+
+    test('timeout → NetworkFailure', () async {
+      when(() => dio.get<Map<String, dynamic>>('/auth/me')).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/auth/me'),
+          type: DioExceptionType.connectionTimeout,
+        ),
+      );
+
+      await expectLater(ds.me(), throwsA(isA<NetworkFailure>()));
+    });
+
+    test('500 → UnknownAuthFailure', () async {
+      when(() => dio.get<Map<String, dynamic>>('/auth/me')).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/auth/me'),
+          response: meHttpResp(500),
+          type: DioExceptionType.badResponse,
+        ),
+      );
+
+      await expectLater(ds.me(), throwsA(isA<UnknownAuthFailure>()));
+    });
+
+    test('body nulo → UnknownAuthFailure', () async {
+      when(
+        () => dio.get<Map<String, dynamic>>('/auth/me'),
+      ).thenAnswer((_) async => meHttpResp(200));
+
+      await expectLater(ds.me(), throwsA(isA<UnknownAuthFailure>()));
+    });
   });
 }
