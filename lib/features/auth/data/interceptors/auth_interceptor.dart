@@ -44,6 +44,13 @@ class AuthInterceptor extends Interceptor {
   /// invalidaría al primero y el cliente quedaría con un par muerto.
   Completer<AuthTokens>? _inFlight;
 
+  /// Flag en `RequestOptions.extra` que marca un request como ya-reintentado
+  /// post-refresh. Si un retry vuelve a recibir 401 (servidor desincronizado,
+  /// par nuevo aún no aceptado por la familia activa, replay), el interceptor
+  /// hace pass-through en lugar de disparar otro refresh — cortocircuita el
+  /// bucle 401 → refresh → 401 → refresh con un techo de un intento.
+  static const String _retriedFlag = '_authRetried';
+
   @override
   Future<void> onRequest(
     RequestOptions options,
@@ -62,6 +69,10 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     if (err.response?.statusCode != 401) {
+      handler.next(err);
+      return;
+    }
+    if (err.requestOptions.extra[_retriedFlag] == true) {
       handler.next(err);
       return;
     }
@@ -96,10 +107,16 @@ class AuthInterceptor extends Interceptor {
       // y reinyectará el Authorization con el access nuevo. Mantiene una sola
       // fuente de verdad del shape del header.
       err.requestOptions.headers.remove('Authorization');
+      err.requestOptions.extra[_retriedFlag] = true;
       final retryRes = await _retryDio.fetch<dynamic>(err.requestOptions);
       handler.resolve(retryRes);
     } on AuthFailure {
       handler.next(err);
+    } on DioException catch (retryErr) {
+      // El retry post-refresh falló por su cuenta (p. ej. 401 de nuevo:
+      // el _retriedFlag corta el bucle dejando pasar el error). Propaga
+      // el DioException del retry al llamador.
+      handler.next(retryErr);
     }
   }
 }
