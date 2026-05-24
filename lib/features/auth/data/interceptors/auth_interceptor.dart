@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 
+import '../../domain/entities/auth_tokens.dart';
 import '../../domain/failures/auth_failure.dart';
 import '../datasources/auth_datasource.dart';
 import '../repositories/token_storage.dart';
@@ -34,6 +37,13 @@ class AuthInterceptor extends Interceptor {
   final AuthDatasource _refreshDs;
   final Future<void> Function() _onUnrecoverable;
 
+  /// Serializa refreshes concurrentes. El primero en llegar (leader) ejecuta
+  /// el canje contra `/auth/refresh`; el resto (followers) esperan al mismo
+  /// Completer. Sin esto, N 401 simultáneos dispararían N refreshes — y el
+  /// backend rota la familia por cada uno, así que el segundo en llegar
+  /// invalidaría al primero y el cliente quedaría con un par muerto.
+  Completer<AuthTokens>? _inFlight;
+
   @override
   Future<void> onRequest(
     RequestOptions options,
@@ -61,10 +71,27 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
-    try {
-      final fresh = await _refreshDs.refresh(tokens.refreshToken);
-      await _storage.save(fresh);
+    final isLeader = _inFlight == null;
+    final completer = _inFlight ??= Completer<AuthTokens>();
+    if (isLeader) {
+      try {
+        final fresh = await _refreshDs.refresh(tokens.refreshToken);
+        await _storage.save(fresh);
+        completer.complete(fresh);
+      } on AuthFailure catch (e) {
+        // Sólo el leader purga y señala: si lo hicieran también los
+        // followers, onUnrecoverable se invocaría N veces y el storage
+        // sufriría writes redundantes.
+        await _storage.clear();
+        await _onUnrecoverable();
+        completer.completeError(e);
+      } finally {
+        _inFlight = null;
+      }
+    }
 
+    try {
+      await completer.future;
       // Limpiar el header viejo: onRequest del retry leerá el storage fresco
       // y reinyectará el Authorization con el access nuevo. Mantiene una sola
       // fuente de verdad del shape del header.
@@ -72,8 +99,6 @@ class AuthInterceptor extends Interceptor {
       final retryRes = await _retryDio.fetch<dynamic>(err.requestOptions);
       handler.resolve(retryRes);
     } on AuthFailure {
-      await _storage.clear();
-      await _onUnrecoverable();
       handler.next(err);
     }
   }
