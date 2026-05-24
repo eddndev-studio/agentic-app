@@ -13,4 +13,7 @@ class BotsRepositoryImpl implements BotsRepository {
 
   @override
   Future<List<Bot>> list() => _ds.list();
+
+  @override
+  Future<Bot> byId(String id) => _ds.byId(id);
 }
