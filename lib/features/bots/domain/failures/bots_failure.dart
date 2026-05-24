@@ -37,6 +37,13 @@ final class BotsServerFailure extends BotsFailure {
   const BotsServerFailure();
 }
 
+/// 404 contra `/bots/:id`: el ID no existe en la org activa (o fue borrado).
+/// Distinto del 403: aquí el rol alcanza pero el recurso no está. Permite
+/// que la UI muestre copy "Este bot ya no existe" en vez de un genérico.
+final class BotsNotFoundFailure extends BotsFailure {
+  const BotsNotFoundFailure();
+}
+
 /// Cualquier otro caso (status no contemplado, body malformado). El cliente
 /// lo expone como error genérico sin filtrar el status crudo.
 final class UnknownBotsFailure extends BotsFailure {

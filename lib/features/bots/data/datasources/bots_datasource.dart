@@ -14,6 +14,10 @@ abstract interface class BotsDatasource {
   /// se gestiona. WORKER ve solo asignados; SUPERVISOR+ ve todos
   /// (decisión RBAC del backend, no del cliente).
   Future<List<Bot>> list();
+
+  /// `GET /bots/:id` org-scoped. 404 si el ID no existe en la org activa;
+  /// 403 si el rol no alcanza (típicamente WORKER sin asignación al bot).
+  Future<Bot> byId(String id);
 }
 
 class DioBotsDatasource implements BotsDatasource {
@@ -47,6 +51,26 @@ class DioBotsDatasource implements BotsDatasource {
     }
   }
 
+  @override
+  Future<Bot> byId(String id) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('/bots/$id');
+      final body = res.data;
+      if (body == null) {
+        throw const UnknownBotsFailure();
+      }
+      return BotsMapper.botRespToEntity(BotResp.fromJson(body));
+    } on BotsFailure {
+      rethrow;
+    } on DioException catch (e) {
+      throw _mapDioException(e);
+    } on FormatException {
+      throw const UnknownBotsFailure();
+    } on TypeError {
+      throw const UnknownBotsFailure();
+    }
+  }
+
   /// Traduce DioException a la jerarquía sellada de BotsFailure. Duplica el
   /// patrón de AuthFailure._mapDioException con los códigos de S04 (403 vs
   /// 401-de-login). Regla de tres: refactor a un helper compartido en el
@@ -62,6 +86,7 @@ class DioBotsDatasource implements BotsDatasource {
       case DioExceptionType.badResponse:
         final status = e.response?.statusCode ?? 0;
         if (status == 403) return const BotsForbiddenFailure();
+        if (status == 404) return const BotsNotFoundFailure();
         if (status >= 500 && status < 600) return const BotsServerFailure();
         return const UnknownBotsFailure();
       case DioExceptionType.cancel:
