@@ -47,11 +47,9 @@ void main() {
       // catch), no un throw síncrono. El stub usa Future.error para que el
       // delegate del repo lo reciba como Future fallido — equivalente a
       // producción.
-      when(
-        () => ds.list(),
-      ).thenAnswer((_) => Future<List<Template>>.error(
-            const TemplatesNetworkFailure(),
-          ));
+      when(() => ds.list()).thenAnswer(
+        (_) => Future<List<Template>>.error(const TemplatesNetworkFailure()),
+      );
 
       await expectLater(repo.list(), throwsA(isA<TemplatesNetworkFailure>()));
     });

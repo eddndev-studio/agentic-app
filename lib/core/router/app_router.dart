@@ -73,8 +73,9 @@ class AppRouter {
                   BotsBloc(_botsRepo)..add(const BotsLoadRequested()),
             ),
             BlocProvider<TemplatesBloc>(
-              create: (_) => TemplatesBloc(_templatesRepo)
-                ..add(const TemplatesLoadRequested()),
+              create: (_) =>
+                  TemplatesBloc(_templatesRepo)
+                    ..add(const TemplatesLoadRequested()),
             ),
           ],
           // Blocs page-scoped a nivel del shell: cambiar de tab no

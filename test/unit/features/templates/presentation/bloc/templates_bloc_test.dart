@@ -74,9 +74,8 @@ void main() {
         build: () {
           final repo = _MockRepo();
           when(repo.list).thenAnswer(
-            (_) => Future<List<Template>>.error(
-              const TemplatesForbiddenFailure(),
-            ),
+            (_) =>
+                Future<List<Template>>.error(const TemplatesForbiddenFailure()),
           );
           return TemplatesBloc(repo);
         },
@@ -92,9 +91,8 @@ void main() {
         build: () {
           final repo = _MockRepo();
           when(repo.list).thenAnswer(
-            (_) => Future<List<Template>>.error(
-              const TemplatesNetworkFailure(),
-            ),
+            (_) =>
+                Future<List<Template>>.error(const TemplatesNetworkFailure()),
           );
           return TemplatesBloc(repo);
         },
@@ -133,9 +131,8 @@ void main() {
         build: () {
           final repo = _MockRepo();
           when(repo.list).thenAnswer(
-            (_) => Future<List<Template>>.error(
-              const TemplatesNetworkFailure(),
-            ),
+            (_) =>
+                Future<List<Template>>.error(const TemplatesNetworkFailure()),
           );
           return TemplatesBloc(repo);
         },

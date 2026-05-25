@@ -61,8 +61,7 @@ void main() {
 
     test('proveedor desconocido propaga ArgumentError (fail-loud)', () {
       expect(
-        () =>
-            TemplatesMapper.aiConfigDtoToEntity(aiDto(provider: 'ANTHROPIC')),
+        () => TemplatesMapper.aiConfigDtoToEntity(aiDto(provider: 'ANTHROPIC')),
         throwsArgumentError,
       );
     });

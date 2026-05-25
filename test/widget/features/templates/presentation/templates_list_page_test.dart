@@ -69,10 +69,7 @@ void main() {
     tester,
   ) async {
     when(() => bloc.state).thenReturn(
-      const TemplatesLoaded(
-        items: <Template>[_t1, _t2],
-        isRefreshing: false,
-      ),
+      const TemplatesLoaded(items: <Template>[_t1, _t2], isRefreshing: false),
     );
 
     await tester.pumpWidget(host());
@@ -82,9 +79,7 @@ void main() {
   });
 
   testWidgets('Loaded vacío muestra empty state (sin tiles)', (tester) async {
-    when(
-      () => bloc.state,
-    ).thenReturn(
+    when(() => bloc.state).thenReturn(
       const TemplatesLoaded(items: <Template>[], isRefreshing: false),
     );
 

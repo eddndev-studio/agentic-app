@@ -63,17 +63,20 @@ void main() {
       'ai': ai ?? aiJson(),
     };
 
-    test('parsea respuesta canónica de GET /templates con todos los campos', () {
-      final r = TemplateResp.fromJson(tplJson(version: 3));
+    test(
+      'parsea respuesta canónica de GET /templates con todos los campos',
+      () {
+        final r = TemplateResp.fromJson(tplJson(version: 3));
 
-      expect(r.id, 't1');
-      expect(r.orgId, 'o1');
-      expect(r.name, 'Soporte');
-      expect(r.version, 3);
-      expect(r.ai.provider, 'GEMINI');
-      expect(r.ai.model, 'gemini-3.1-pro-preview');
-      expect(r.ai.thinkingLevel, 'LOW');
-    });
+        expect(r.id, 't1');
+        expect(r.orgId, 'o1');
+        expect(r.name, 'Soporte');
+        expect(r.version, 3);
+        expect(r.ai.provider, 'GEMINI');
+        expect(r.ai.model, 'gemini-3.1-pro-preview');
+        expect(r.ai.thinkingLevel, 'LOW');
+      },
+    );
 
     test('clave obligatoria ausente lanza FormatException', () {
       expect(

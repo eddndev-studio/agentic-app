@@ -69,7 +69,11 @@ void main() {
           200,
           body: <dynamic>[
             tplJson(),
-            tplJson(id: 't2', version: 3, ai: aiJson(provider: 'OPENAI')),
+            tplJson(
+              id: 't2',
+              version: 3,
+              ai: aiJson(provider: 'OPENAI'),
+            ),
           ],
         ),
       );
@@ -168,20 +172,22 @@ void main() {
       await expectLater(ds.list(), throwsA(isA<UnknownTemplatesFailure>()));
     });
 
-    test('proveedor desconocido en el wire → ArgumentError (fail-loud)',
-        () async {
-      // Drift de contrato del backend: si introduce un proveedor nuevo sin
-      // que el cliente lo conozca, el mapper rompe en boot. NO se traduce
-      // a UnknownTemplatesFailure porque el operador no puede reintentar
-      // su salida — es un bug que debe enterarse el desarrollador.
-      when(() => dio.get<List<dynamic>>('/templates')).thenAnswer(
-        (_) async => resp(
-          200,
-          body: <dynamic>[tplJson(ai: aiJson(provider: 'ANTHROPIC'))],
-        ),
-      );
+    test(
+      'proveedor desconocido en el wire → ArgumentError (fail-loud)',
+      () async {
+        // Drift de contrato del backend: si introduce un proveedor nuevo sin
+        // que el cliente lo conozca, el mapper rompe en boot. NO se traduce
+        // a UnknownTemplatesFailure porque el operador no puede reintentar
+        // su salida — es un bug que debe enterarse el desarrollador.
+        when(() => dio.get<List<dynamic>>('/templates')).thenAnswer(
+          (_) async => resp(
+            200,
+            body: <dynamic>[tplJson(ai: aiJson(provider: 'ANTHROPIC'))],
+          ),
+        );
 
-      await expectLater(ds.list(), throwsArgumentError);
-    });
+        await expectLater(ds.list(), throwsArgumentError);
+      },
+    );
   });
 }
