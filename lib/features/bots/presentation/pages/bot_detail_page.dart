@@ -80,15 +80,9 @@ class _LoadedView extends StatelessWidget {
             children: <Widget>[
               AppPill.outline(label: 'v${bot.version}'),
               if (bot.paused)
-                const AppPill.neutral(
-                  label: 'Pausado',
-                  dot: AppPillDot.paused,
-                )
+                const AppPill.neutral(label: 'Pausado', dot: AppPillDot.paused)
               else
-                const AppPill.primary(
-                  label: 'Activo',
-                  dot: AppPillDot.active,
-                ),
+                const AppPill.primary(label: 'Activo', dot: AppPillDot.active),
               // IA off es estado de configuración, no error → neutral.
               // El pill solo aparece cuando aiDisabled=true; el caso default
               // (IA habilitada) no se verbaliza para no saturar el header.

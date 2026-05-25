@@ -168,7 +168,9 @@ class _StatGrid extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Expanded(child: _StatTile(label: 'Modelo', value: ai.model)),
+              Expanded(
+                child: _StatTile(label: 'Modelo', value: ai.model),
+              ),
               const SizedBox(width: AppTokens.cardGap),
               Expanded(
                 child: _StatTile(

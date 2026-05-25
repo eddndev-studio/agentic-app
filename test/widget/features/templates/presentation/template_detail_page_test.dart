@@ -149,34 +149,31 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Loaded muestra los 4 stats AIConfig en AppCard individuales '
-    '(modelo/temp/razonamiento/contexto)',
-    (tester) async {
-      when(() => bloc.state).thenReturn(const TemplateDetailLoaded(_tpl));
+  testWidgets('Loaded muestra los 4 stats AIConfig en AppCard individuales '
+      '(modelo/temp/razonamiento/contexto)', (tester) async {
+    when(() => bloc.state).thenReturn(const TemplateDetailLoaded(_tpl));
 
-      await tester.pumpWidget(host());
+    await tester.pumpWidget(host());
 
-      // Cuatro stat tiles, uno por campo. Cada uno es un AppCard con
-      // label caption + valor titleM — reemplaza al _FieldRow del shape
-      // pre-DS (label 180px fijo).
-      expect(find.byType(AppCard), findsNWidgets(4));
-      expect(find.widgetWithText(AppCard, 'Modelo'), findsOneWidget);
-      expect(
-        find.widgetWithText(AppCard, 'gemini-3.1-pro-preview'),
-        findsOneWidget,
-      );
-      expect(find.widgetWithText(AppCard, 'Temperatura'), findsOneWidget);
-      expect(find.widgetWithText(AppCard, '0.7'), findsOneWidget);
-      expect(find.widgetWithText(AppCard, 'Razonamiento'), findsOneWidget);
-      expect(find.widgetWithText(AppCard, 'Medio'), findsOneWidget);
-      expect(
-        find.widgetWithText(AppCard, 'Mensajes de contexto'),
-        findsOneWidget,
-      );
-      expect(find.widgetWithText(AppCard, '20'), findsOneWidget);
-    },
-  );
+    // Cuatro stat tiles, uno por campo. Cada uno es un AppCard con
+    // label caption + valor titleM — reemplaza al _FieldRow del shape
+    // pre-DS (label 180px fijo).
+    expect(find.byType(AppCard), findsNWidgets(4));
+    expect(find.widgetWithText(AppCard, 'Modelo'), findsOneWidget);
+    expect(
+      find.widgetWithText(AppCard, 'gemini-3.1-pro-preview'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(AppCard, 'Temperatura'), findsOneWidget);
+    expect(find.widgetWithText(AppCard, '0.7'), findsOneWidget);
+    expect(find.widgetWithText(AppCard, 'Razonamiento'), findsOneWidget);
+    expect(find.widgetWithText(AppCard, 'Medio'), findsOneWidget);
+    expect(
+      find.widgetWithText(AppCard, 'Mensajes de contexto'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(AppCard, '20'), findsOneWidget);
+  });
 
   testWidgets('Loaded con systemPrompt no vacío lo muestra (SelectableText)', (
     tester,
