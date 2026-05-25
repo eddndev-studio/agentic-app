@@ -55,9 +55,8 @@ void main() {
     ),
   );
 
-  AppButton submitButton(WidgetTester tester) => tester.widget<AppButton>(
-    find.byKey(const Key('template_create.submit')),
-  );
+  AppButton submitButton(WidgetTester tester) =>
+      tester.widget<AppButton>(find.byKey(const Key('template_create.submit')));
 
   testWidgets(
     'Initial muestra AppTextField y AppButton "Crear" deshabilitado',
@@ -70,11 +69,7 @@ void main() {
         findsOneWidget,
       );
       final btn = submitButton(tester);
-      expect(
-        btn.onPressed,
-        isNull,
-        reason: 'name vacío deshabilita el submit',
-      );
+      expect(btn.onPressed, isNull, reason: 'name vacío deshabilita el submit');
       expect(btn.loading, false);
     },
   );
@@ -229,10 +224,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp.router(
-          theme: AppDesignTheme.dark(),
-          routerConfig: router,
-        ),
+        MaterialApp.router(theme: AppDesignTheme.dark(), routerConfig: router),
       );
       // El future de push se resuelve cuando la ruta retorna (al popear),
       // que en este test no ocurre — basta con disparar la navegación y

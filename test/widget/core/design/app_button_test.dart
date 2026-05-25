@@ -178,25 +178,24 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets(
-      'loading: true muestra spinner inline y oculta label e icon',
-      (tester) async {
-        await pumpButton(
-          tester,
-          AppButton.filled(
-            label: 'Crear',
-            icon: Icons.add,
-            onPressed: () {},
-            loading: true,
-          ),
-        );
-        // El spinner comunica el estado de submitting; label + icon se
-        // ocultan para no competir con el feedback visual.
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-        expect(find.text('Crear'), findsNothing);
-        expect(find.byIcon(Icons.add), findsNothing);
-      },
-    );
+    testWidgets('loading: true muestra spinner inline y oculta label e icon', (
+      tester,
+    ) async {
+      await pumpButton(
+        tester,
+        AppButton.filled(
+          label: 'Crear',
+          icon: Icons.add,
+          onPressed: () {},
+          loading: true,
+        ),
+      );
+      // El spinner comunica el estado de submitting; label + icon se
+      // ocultan para no competir con el feedback visual.
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Crear'), findsNothing);
+      expect(find.byIcon(Icons.add), findsNothing);
+    });
 
     testWidgets(
       'loading: true con foreground primary (variante filled) tinte el '
@@ -224,11 +223,7 @@ void main() {
       var taps = 0;
       await pumpButton(
         tester,
-        AppButton.filled(
-          label: 'X',
-          onPressed: () => taps++,
-          loading: true,
-        ),
+        AppButton.filled(label: 'X', onPressed: () => taps++, loading: true),
       );
       await tester.tap(find.byType(AppButton));
       // pumpAndSettle nunca termina con el spinner animado en pantalla;

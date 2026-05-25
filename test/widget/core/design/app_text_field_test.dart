@@ -8,7 +8,10 @@ import 'package:agentic/core/design/widgets/app_text_field.dart';
 void main() {
   Future<void> pump(WidgetTester tester, Widget field) async {
     await tester.pumpWidget(
-      MaterialApp(theme: AppDesignTheme.dark(), home: Scaffold(body: field)),
+      MaterialApp(
+        theme: AppDesignTheme.dark(),
+        home: Scaffold(body: field),
+      ),
     );
   }
 
@@ -111,10 +114,7 @@ void main() {
       // Borderless = OutlineInputBorder con BorderSide.none.
       final border = deco.enabledBorder as OutlineInputBorder;
       expect(border.borderSide, BorderSide.none);
-      expect(
-        border.borderRadius,
-        BorderRadius.circular(AppTokens.radiusField),
-      );
+      expect(border.borderRadius, BorderRadius.circular(AppTokens.radiusField));
     });
 
     testWidgets('hintStyle en bodyMedium text2 (sin tinte ColorScheme)', (

@@ -58,9 +58,8 @@ void main() {
     ),
   );
 
-  AppButton submitButton(WidgetTester tester) => tester.widget<AppButton>(
-    find.byKey(const Key('bot_create.submit')),
-  );
+  AppButton submitButton(WidgetTester tester) =>
+      tester.widget<AppButton>(find.byKey(const Key('bot_create.submit')));
 
   testWidgets(
     'Initial muestra chip con nombre de plantilla, AppTextField y submit OFF',
@@ -76,11 +75,7 @@ void main() {
       expect(find.byType(AppTextField), findsOneWidget);
       expect(find.byKey(const Key('bot_create.field.name')), findsOneWidget);
       final btn = submitButton(tester);
-      expect(
-        btn.onPressed,
-        isNull,
-        reason: 'name vacío deshabilita el submit',
-      );
+      expect(btn.onPressed, isNull, reason: 'name vacío deshabilita el submit');
       expect(btn.loading, false);
     },
   );
@@ -260,10 +255,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp.router(
-          theme: AppDesignTheme.dark(),
-          routerConfig: router,
-        ),
+        MaterialApp.router(theme: AppDesignTheme.dark(), routerConfig: router),
       );
       unawaited(router.push<void>('/templates/t1/bots/new'));
       await tester.pumpAndSettle();
