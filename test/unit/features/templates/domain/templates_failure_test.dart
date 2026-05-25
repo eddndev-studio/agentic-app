@@ -6,12 +6,13 @@ void main() {
     test('todas las variantes son subtipos de TemplatesFailure y Exception', () {
       // Sellar la jerarquía obliga a que un switch del bloc cubra todos los
       // casos; un nuevo failure rompe el build en lugar de colarse silencioso.
-      // El slice 1 no incluye NotFound porque `GET /templates` no devuelve
-      // 404 (lista vacía es 200 con []); aterrizará con el detalle por id.
+      // NotFound aterriza con el endpoint de detalle por id: GET
+      // /templates/:id sí responde 404 si el id no existe en la org.
       const failures = <TemplatesFailure>[
         TemplatesNetworkFailure(),
         TemplatesTimeoutFailure(),
         TemplatesForbiddenFailure(),
+        TemplatesNotFoundFailure(),
         TemplatesServerFailure(),
         UnknownTemplatesFailure(),
       ];
