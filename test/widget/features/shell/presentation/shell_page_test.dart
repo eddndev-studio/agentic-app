@@ -210,32 +210,45 @@ void main() {
       expect(find.byType(FloatingActionButton), findsNothing);
     });
 
-    testWidgets(
-      'tab Plantillas expone FAB de crear plantilla (phone y tablet)',
-      (tester) async {
-        useViewport(tester, widthDp: 420);
+    testWidgets('tab Plantillas (phone) expone FAB de crear plantilla', (
+      tester,
+    ) async {
+      useViewport(tester, widthDp: 420);
 
-        await tester.pumpWidget(host());
-        await tester.tap(find.text('Plantillas'));
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(host());
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BottomNavigationBar),
+          matching: find.text('Plantillas'),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        expect(
-          find.byKey(const Key('shell.fab.template_create')),
-          findsOneWidget,
-        );
+      expect(
+        find.byKey(const Key('shell.fab.template_create')),
+        findsOneWidget,
+      );
+    });
 
-        // Mismo comportamiento en tablet.
-        useViewport(tester, widthDp: 800);
-        await tester.pumpWidget(host());
-        await tester.tap(find.text('Plantillas'));
-        await tester.pumpAndSettle();
+    testWidgets('tab Plantillas (tablet) expone FAB de crear plantilla', (
+      tester,
+    ) async {
+      useViewport(tester, widthDp: 800);
 
-        expect(
-          find.byKey(const Key('shell.fab.template_create')),
-          findsOneWidget,
-        );
-      },
-    );
+      await tester.pumpWidget(host());
+      await tester.tap(
+        find.descendant(
+          of: find.byType(NavigationRail),
+          matching: find.text('Plantillas'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('shell.fab.template_create')),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('tab Ajustes no expone FAB', (tester) async {
       useViewport(tester, widthDp: 420);
