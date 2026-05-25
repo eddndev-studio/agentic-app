@@ -232,4 +232,3 @@ class _AuthBlocListenable extends ChangeNotifier {
     super.dispose();
   }
 }
-

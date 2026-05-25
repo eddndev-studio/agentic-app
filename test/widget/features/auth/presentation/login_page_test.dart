@@ -166,7 +166,9 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pump();
 
-    final t = tester.widget<Text>(find.text('Algo salió mal, intenta de nuevo'));
+    final t = tester.widget<Text>(
+      find.text('Algo salió mal, intenta de nuevo'),
+    );
     expect(t.style?.color, AppTokens.danger);
   });
 }

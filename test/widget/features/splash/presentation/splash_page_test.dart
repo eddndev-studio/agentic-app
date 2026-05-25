@@ -23,7 +23,8 @@ void main() {
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     final effective =
-        scaffold.backgroundColor ?? Theme.of(tester.element(find.byType(Scaffold))).scaffoldBackgroundColor;
+        scaffold.backgroundColor ??
+        Theme.of(tester.element(find.byType(Scaffold))).scaffoldBackgroundColor;
     expect(effective, AppTokens.bgBase);
   });
 

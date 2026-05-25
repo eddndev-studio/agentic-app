@@ -95,5 +95,4 @@ void main() {
       expect(s.color, AppTokens.text2);
     });
   });
-
 }
