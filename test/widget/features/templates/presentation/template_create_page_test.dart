@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:agentic/features/templates/domain/entities/template.dart';
 import 'package:agentic/features/templates/domain/failures/templates_failure.dart';
 import 'package:agentic/features/templates/presentation/bloc/template_create_bloc.dart';
@@ -213,7 +215,10 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-      router.push('/templates/new');
+      // El future de push se resuelve cuando la ruta retorna (al popear),
+      // que en este test no ocurre — basta con disparar la navegación y
+      // esperar al settle.
+      unawaited(router.push<void>('/templates/new'));
       await tester.pumpAndSettle();
 
       expect(
