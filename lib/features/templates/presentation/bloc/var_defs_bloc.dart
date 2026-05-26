@@ -19,6 +19,7 @@ class VarDefsBloc extends Bloc<VarDefsEvent, VarDefsState> {
       super(const VarDefsLoading()) {
     on<VarDefsLoadRequested>(_onLoad);
     on<VarDefsAddRequested>(_onAdd);
+    on<VarDefsUpdateRequested>(_onUpdate);
   }
 
   final TemplatesRepository _repo;
@@ -43,11 +44,52 @@ class VarDefsBloc extends Bloc<VarDefsEvent, VarDefsState> {
     VarDefsAddRequested event,
     Emitter<VarDefsState> emit,
   ) async {
-    // El Add requiere la version del Template padre (CAS). Sólo es
-    // legítimo desde Loaded — desde Loading/Failed/Mutating ignoramos
-    // (la UI debería bloquear el botón, pero el bloc es defensivo).
-    // MutationFailed sí permite retry: el snapshot anterior sigue
-    // siendo válido para el siguiente intento.
+    await _runMutation(emit, (version) async {
+      // El POST devuelve la nueva def, pero el bloc refetchea el
+      // listado completo después; descartamos el retorno.
+      await _repo.addVarDef(
+        templateId: _templateId,
+        name: event.name,
+        type: event.type,
+        defaultValue: event.defaultValue,
+        description: event.description,
+        version: version,
+      );
+    });
+  }
+
+  Future<void> _onUpdate(
+    VarDefsUpdateRequested event,
+    Emitter<VarDefsState> emit,
+  ) async {
+    await _runMutation(
+      emit,
+      (version) => _repo.updateVarDef(
+        varDefId: event.varDefId,
+        version: version,
+        name: event.name,
+        defaultValue: event.defaultValue,
+        description: event.description,
+      ),
+    );
+  }
+
+  /// Orquesta el ciclo común de una mutación de var-def:
+  /// 1. lee snapshot vigente (Loaded o MutationFailed) — desde
+  ///    Loading/Failed/Mutating ignora (no hay version para CAS),
+  /// 2. emit Mutating(snapshot),
+  /// 3. corre `mutate(version)` — failure ⇒ MutationFailed con el
+  ///    snapshot intacto,
+  /// 4. emit Loading + refetch — failure ⇒ Failed (NO enmascarar
+  ///    success de la mutación; el server ya persistió).
+  ///
+  /// Add/Update/Delete sólo aportan el cuerpo de `mutate`; el shape
+  /// del state machine es idéntico. La función recibe la version del
+  /// snapshot — la mutación la usa como CAS contra el Template padre.
+  Future<void> _runMutation(
+    Emitter<VarDefsState> emit,
+    Future<void> Function(int version) mutate,
+  ) async {
     final current = state;
     final ({List<VariableDef> defs, int version}) snapshot;
     if (current is VarDefsLoaded) {
@@ -60,26 +102,11 @@ class VarDefsBloc extends Bloc<VarDefsEvent, VarDefsState> {
 
     emit(VarDefsMutating(snapshot.defs, snapshot.version));
     try {
-      await _repo.addVarDef(
-        templateId: _templateId,
-        name: event.name,
-        type: event.type,
-        defaultValue: event.defaultValue,
-        description: event.description,
-        version: snapshot.version,
-      );
+      await mutate(snapshot.version);
     } on TemplatesFailure catch (f) {
       emit(VarDefsMutationFailed(snapshot.defs, snapshot.version, f));
       return;
     }
-    // Re-list para refrescar la nueva version del Template padre y la
-    // posición real del nuevo def en el orden del backend. El POST
-    // sólo devolvió la def, no el snapshot completo.
-    //
-    // Crítico: NO enmascarar success del POST si el refetch falla. La
-    // mutación YA se persistió en el servidor; el snapshot local está
-    // stale. Failed es el terminal honesto — el operador puede
-    // reintentar el Load para refrescar.
     emit(const VarDefsLoading());
     try {
       final res = await _repo.listVarDefs(_templateId);
@@ -130,6 +157,36 @@ class VarDefsAddRequested extends VarDefsEvent {
 
   @override
   int get hashCode => Object.hash(name, type, defaultValue, description);
+}
+
+/// Pide editar una variable-definition existente. Los campos nullables
+/// son only-changed: `null` ⇒ no-op del campo, `''` ⇒ clear explícito
+/// (consistente con el patch `*string` del backend). Una mutación sin
+/// ningún campo es válida pero no-op del lado servidor — la UI no debe
+/// dispatcharlo.
+class VarDefsUpdateRequested extends VarDefsEvent {
+  const VarDefsUpdateRequested({
+    required this.varDefId,
+    this.name,
+    this.defaultValue,
+    this.description,
+  });
+
+  final String varDefId;
+  final String? name;
+  final String? defaultValue;
+  final String? description;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VarDefsUpdateRequested &&
+      other.varDefId == varDefId &&
+      other.name == name &&
+      other.defaultValue == defaultValue &&
+      other.description == description;
+
+  @override
+  int get hashCode => Object.hash(varDefId, name, defaultValue, description);
 }
 
 // States --------------------------------------------------------------------
