@@ -140,8 +140,22 @@ class _EditFormState extends State<_EditForm> {
   void _submit() {
     final name = _name.text.trim();
     if (name.isEmpty) return;
+    // TE1 sólo edita name + systemPrompt; los 6 campos restantes del
+    // AIConfig se conservan tal cual desde el template cargado. El bloc
+    // ya no reconstruye AIConfig (cambio TE3) — el caller construye el
+    // value object entero a partir del estado del form. Aquí, el form
+    // mínimo cambia un único campo y propaga el resto.
+    final ai = AIConfig(
+      enabled: widget.template.ai.enabled,
+      provider: widget.template.ai.provider,
+      model: widget.template.ai.model,
+      temperature: widget.template.ai.temperature,
+      thinkingLevel: widget.template.ai.thinkingLevel,
+      systemPrompt: _systemPrompt.text,
+      contextMessages: widget.template.ai.contextMessages,
+    );
     context.read<TemplateEditBloc>().add(
-      TemplateEditSubmitted(name: name, systemPrompt: _systemPrompt.text),
+      TemplateEditSubmitted(name: name, ai: ai),
     );
   }
 

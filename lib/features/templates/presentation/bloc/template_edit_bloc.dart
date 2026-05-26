@@ -62,23 +62,16 @@ class TemplateEditBloc extends Bloc<TemplateEditEvent, TemplateEditState> {
 
     emit(TemplateEditSubmitting(template));
     try {
-      // Conserva los campos no-editables del AIConfig original; sólo
-      // cambia systemPrompt. Un bug que pasara un AIConfig recién
-      // construido borraría provider/model/temp/etc. en el PUT.
-      final updatedAi = AIConfig(
-        enabled: template.ai.enabled,
-        provider: template.ai.provider,
-        model: template.ai.model,
-        temperature: template.ai.temperature,
-        thinkingLevel: template.ai.thinkingLevel,
-        systemPrompt: event.systemPrompt,
-        contextMessages: template.ai.contextMessages,
-      );
+      // Submit reenvía el AIConfig provisto por el caller intacto al repo.
+      // El form de edit construye el value object completo a partir de su
+      // propio estado; el bloc no reconstruye ni clona campos. Antes (TE1
+      // con form mínimo) el bloc preservaba 6 campos no-editables; con
+      // el editor completo (TE3) la responsabilidad migra al caller.
       final updated = await _repo.update(
         id: _id,
         name: event.name,
         version: template.version,
-        ai: updatedAi,
+        ai: event.ai,
       );
       emit(TemplateEditSucceeded(updated));
     } on TemplatesFailure catch (f) {
@@ -104,19 +97,19 @@ class TemplateEditLoadRequested extends TemplateEditEvent {
 }
 
 class TemplateEditSubmitted extends TemplateEditEvent {
-  const TemplateEditSubmitted({required this.name, required this.systemPrompt});
+  const TemplateEditSubmitted({required this.name, required this.ai});
 
   final String name;
-  final String systemPrompt;
+  final AIConfig ai;
 
   @override
   bool operator ==(Object other) =>
       other is TemplateEditSubmitted &&
       other.name == name &&
-      other.systemPrompt == systemPrompt;
+      other.ai == ai;
 
   @override
-  int get hashCode => Object.hash(name, systemPrompt);
+  int get hashCode => Object.hash(name, ai);
 }
 
 // States --------------------------------------------------------------------

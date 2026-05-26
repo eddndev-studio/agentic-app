@@ -116,11 +116,24 @@ void main() {
       await tester.tap(find.byKey(const Key('template_edit.submit')));
       await tester.pump();
 
+      // El form mínimo de TE1 cambia name + systemPrompt y conserva los
+      // 6 campos no-editables del AIConfig del template cargado. La
+      // responsabilidad de construir el AIConfig migró del bloc al
+      // caller (cambio TE3): el evento ahora lleva el value object
+      // completo.
       verify(
         () => bloc.add(
-          const TemplateEditSubmitted(
+          TemplateEditSubmitted(
             name: 'Soporte v2',
-            systemPrompt: 'Nuevo prompt.',
+            ai: AIConfig(
+              enabled: _tpl.ai.enabled,
+              provider: _tpl.ai.provider,
+              model: _tpl.ai.model,
+              temperature: _tpl.ai.temperature,
+              thinkingLevel: _tpl.ai.thinkingLevel,
+              systemPrompt: 'Nuevo prompt.',
+              contextMessages: _tpl.ai.contextMessages,
+            ),
           ),
         ),
       ).called(1);
