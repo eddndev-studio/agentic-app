@@ -528,6 +528,35 @@ void main() {
     );
 
     testWidgets(
+      'tap row de variable abre el sheet en modo edit (editing pre-fillado)',
+      (tester) async {
+        const defs = <VariableDef>[
+          VariableDef(
+            id: 'v1',
+            name: 'nombre',
+            type: VarType.text,
+            defaultValue: 'cliente',
+            description: 'Saludo personalizado',
+          ),
+        ];
+        when(() => bloc.state).thenReturn(const TemplateDetailLoaded(_tpl));
+        when(() => varDefsBloc.state).thenReturn(const VarDefsLoaded(defs, 2));
+
+        await tester.pumpWidget(host());
+        // El row del var-def es tappeable. Cualquier descendant
+        // tappable que arranque el flujo está bien — clave: end-to-end
+        // el sheet se monta con el editing pre-fillado.
+        await tester.tap(find.text('{{nombre}}'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(VarDefFormSheet), findsOneWidget);
+        // El sheet refleja modo edit (title + valores pre-fillados).
+        expect(find.text('Editar variable'), findsOneWidget);
+        expect(find.text('Saludo personalizado'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'MutationFailed muestra SnackBar con copy de "intenta recargar"',
       (tester) async {
         // El parent del sheet es quien muestra feedback de error — el
