@@ -40,7 +40,25 @@ const _tplUpdated = Template(
   ),
 );
 
+/// AIConfig editado por el operador en el form (TE3): cambia model + temp.
+/// El bloc lo pasa al repo tal cual; ya no es responsabilidad del bloc
+/// preservar los 6 campos no-editables (TE1 lo hacía porque el form sólo
+/// editaba systemPrompt; TE3 el caller construye el value object entero).
+const _aiEdited = AIConfig(
+  enabled: true,
+  provider: AIProvider.openai,
+  model: 'gpt-5.5',
+  temperature: 1.2,
+  thinkingLevel: ThinkingLevel.high,
+  systemPrompt: 'Nuevo prompt.',
+  contextMessages: 30,
+);
+
 void main() {
+  setUpAll(() {
+    registerFallbackValue(_aiEdited);
+  });
+
   group('TemplateEditBloc', () {
     test('estado inicial = TemplateEditLoading (sin flash de Initial)', () {
       final bloc = TemplateEditBloc(repo: _MockRepo(), id: 't1');
@@ -107,10 +125,7 @@ void main() {
         },
         seed: () => const TemplateEditEditing(_tpl),
         act: (bloc) => bloc.add(
-          const TemplateEditSubmitted(
-            name: 'Soporte v2',
-            systemPrompt: 'Nuevo prompt.',
-          ),
+          const TemplateEditSubmitted(name: 'Soporte v2', ai: _aiEdited),
         ),
         expect: () => const <TemplateEditState>[
           TemplateEditSubmitting(_tpl),
@@ -136,7 +151,7 @@ void main() {
         },
         seed: () => const TemplateEditEditing(_tpl),
         act: (bloc) =>
-            bloc.add(const TemplateEditSubmitted(name: 'x', systemPrompt: 'y')),
+            bloc.add(const TemplateEditSubmitted(name: 'x', ai: _aiEdited)),
         expect: () => const <TemplateEditState>[
           TemplateEditSubmitting(_tpl),
           TemplateEditSubmitFailed(
@@ -165,7 +180,7 @@ void main() {
         },
         seed: () => const TemplateEditEditing(_tpl),
         act: (bloc) =>
-            bloc.add(const TemplateEditSubmitted(name: 'x', systemPrompt: 'y')),
+            bloc.add(const TemplateEditSubmitted(name: 'x', ai: _aiEdited)),
         expect: () => const <TemplateEditState>[
           TemplateEditSubmitting(_tpl),
           TemplateEditSubmitFailed(
@@ -176,18 +191,19 @@ void main() {
       );
 
       test(
-        'submit serializa AIConfig con systemPrompt nuevo y demás campos intactos',
+        'submit pasa el AIConfig provisto al repo sin modificarlo',
         () async {
-          // Garantiza que el bloc conserve los 6 campos no-editables del
-          // AIConfig al cambiar solo systemPrompt. Sin esto, un bug que
-          // pasara un AIConfig recién construido (con defaults) borraría
-          // provider/model/temperature/etc. en el PUT.
+          // El caller (form de edit en TE3) construye el AIConfig completo
+          // a partir del estado del form; el bloc lo reenvía intacto al
+          // repo. Un bug que reconstruyera el AIConfig (como hacía TE1
+          // cuando el form sólo editaba systemPrompt) borraría las
+          // ediciones del operador en provider/model/temp/etc.
           final repo = _MockRepo();
           AIConfig? capturedAi;
           when(
             () => repo.update(
               id: 't1',
-              name: 'x',
+              name: 'Soporte v2',
               version: 1,
               ai: any(named: 'ai'),
             ),
@@ -199,24 +215,13 @@ void main() {
           bloc.emit(const TemplateEditEditing(_tpl));
 
           bloc.add(
-            const TemplateEditSubmitted(
-              name: 'x',
-              systemPrompt: 'Nuevo prompt.',
-            ),
+            const TemplateEditSubmitted(name: 'Soporte v2', ai: _aiEdited),
           );
           await bloc.stream.firstWhere(
             (s) => s is TemplateEditSucceeded || s is TemplateEditSubmitFailed,
           );
 
-          expect(capturedAi, isNotNull);
-          expect(capturedAi!.systemPrompt, 'Nuevo prompt.');
-          // Resto del AIConfig original debe estar intacto.
-          expect(capturedAi!.enabled, _tpl.ai.enabled);
-          expect(capturedAi!.provider, _tpl.ai.provider);
-          expect(capturedAi!.model, _tpl.ai.model);
-          expect(capturedAi!.temperature, _tpl.ai.temperature);
-          expect(capturedAi!.thinkingLevel, _tpl.ai.thinkingLevel);
-          expect(capturedAi!.contextMessages, _tpl.ai.contextMessages);
+          expect(capturedAi, equals(_aiEdited));
         },
       );
     });

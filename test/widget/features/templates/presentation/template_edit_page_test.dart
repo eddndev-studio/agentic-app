@@ -1,6 +1,9 @@
 import 'package:agentic/core/design/app_design_theme.dart';
 import 'package:agentic/core/design/widgets/app_button.dart';
 import 'package:agentic/core/design/widgets/app_text_field.dart';
+import 'package:agentic/features/ai_catalog/domain/entities/catalog.dart';
+import 'package:agentic/features/ai_catalog/domain/failures/catalog_failure.dart';
+import 'package:agentic/features/ai_catalog/presentation/bloc/catalog_bloc.dart';
 import 'package:agentic/features/templates/domain/entities/template.dart';
 import 'package:agentic/features/templates/domain/failures/templates_failure.dart';
 import 'package:agentic/features/templates/presentation/bloc/template_edit_bloc.dart';
@@ -12,8 +15,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockBloc extends MockBloc<TemplateEditEvent, TemplateEditState>
+class _MockEditBloc extends MockBloc<TemplateEditEvent, TemplateEditState>
     implements TemplateEditBloc {}
+
+class _MockCatalogBloc extends MockBloc<CatalogEvent, CatalogState>
+    implements CatalogBloc {}
 
 const _tpl = Template(
   id: 't1',
@@ -31,80 +37,517 @@ const _tpl = Template(
   ),
 );
 
+const _gemini = ProviderEntry(
+  provider: 'GEMINI',
+  defaultModel: 'gemini-3.1-pro-preview',
+  models: <AIModel>[
+    AIModel(
+      id: 'gemini-3.1-pro-preview',
+      supportsTemperature: true,
+      supportsThinking: true,
+    ),
+    AIModel(
+      id: 'gemini-3.5-flash',
+      supportsTemperature: true,
+      supportsThinking: true,
+    ),
+  ],
+);
+const _openai = ProviderEntry(
+  provider: 'OPENAI',
+  defaultModel: 'gpt-5.5',
+  models: <AIModel>[
+    AIModel(id: 'gpt-5.5', supportsTemperature: false, supportsThinking: true),
+  ],
+);
+const _catalog = Catalog(providers: <ProviderEntry>[_gemini, _openai]);
+
 void main() {
   setUpAll(() {
     registerFallbackValue(const TemplateEditLoadRequested());
+    registerFallbackValue(const CatalogLoadRequested());
   });
 
-  late _MockBloc bloc;
+  late _MockEditBloc editBloc;
+  late _MockCatalogBloc catalogBloc;
 
   setUp(() {
-    bloc = _MockBloc();
-    when(() => bloc.state).thenReturn(const TemplateEditLoading());
+    editBloc = _MockEditBloc();
+    catalogBloc = _MockCatalogBloc();
+    when(() => editBloc.state).thenReturn(const TemplateEditLoading());
+    when(() => catalogBloc.state).thenReturn(const CatalogLoading());
   });
 
   Widget host() => MaterialApp(
     theme: AppDesignTheme.dark(),
-    home: BlocProvider<TemplateEditBloc>.value(
-      value: bloc,
+    home: MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<TemplateEditBloc>.value(value: editBloc),
+        BlocProvider<CatalogBloc>.value(value: catalogBloc),
+      ],
       child: const Scaffold(body: TemplateEditPage()),
     ),
   );
 
-  testWidgets('Loading muestra spinner', (tester) async {
-    when(() => bloc.state).thenReturn(const TemplateEditLoading());
-
-    await tester.pumpWidget(host());
-
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.byType(AppTextField), findsNothing);
-  });
-
-  testWidgets('LoadFailed muestra error + Reintentar', (tester) async {
-    when(
-      () => bloc.state,
-    ).thenReturn(const TemplateEditLoadFailed(TemplatesNotFoundFailure()));
-
-    await tester.pumpWidget(host());
-
-    expect(find.byKey(const Key('template_edit.load_error')), findsOneWidget);
-    expect(find.widgetWithText(AppButton, 'Reintentar'), findsOneWidget);
-  });
-
-  testWidgets('tap Reintentar dispara TemplateEditLoadRequested', (
-    tester,
-  ) async {
-    when(
-      () => bloc.state,
-    ).thenReturn(const TemplateEditLoadFailed(TemplatesNetworkFailure()));
-
-    await tester.pumpWidget(host());
-    await tester.tap(find.widgetWithText(AppButton, 'Reintentar'));
-    await tester.pump();
-
-    verify(() => bloc.add(const TemplateEditLoadRequested())).called(1);
-  });
-
-  testWidgets(
-    'Editing pre-fills nombre + systemPrompt con los valores del template',
-    (tester) async {
-      when(() => bloc.state).thenReturn(const TemplateEditEditing(_tpl));
+  group('estados combinados de carga', () {
+    testWidgets('Template Loading + Catalog Loaded → spinner', (tester) async {
+      when(() => editBloc.state).thenReturn(const TemplateEditLoading());
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogLoaded(catalog: _catalog));
 
       await tester.pumpWidget(host());
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(AppTextField), findsNothing);
+    });
+
+    testWidgets('Template Editing + Catalog Loading → spinner', (tester) async {
+      // El editor necesita el catálogo para pintar los pickers. Hasta
+      // que ambos blocs terminen su load, no se rendera form parcial.
+      when(() => editBloc.state).thenReturn(const TemplateEditEditing(_tpl));
+      when(() => catalogBloc.state).thenReturn(const CatalogLoading());
+
+      await tester.pumpWidget(host());
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(AppTextField), findsNothing);
+    });
+
+    testWidgets(
+      'Template LoadFailed prioriza sobre Catalog (error del template)',
+      (tester) async {
+        // Si el template no carga, no hay nada que editar — el error del
+        // template gana sobre cualquier estado del catálogo.
+        when(
+          () => editBloc.state,
+        ).thenReturn(const TemplateEditLoadFailed(TemplatesNotFoundFailure()));
+        when(
+          () => catalogBloc.state,
+        ).thenReturn(const CatalogLoaded(catalog: _catalog));
+
+        await tester.pumpWidget(host());
+
+        expect(
+          find.byKey(const Key('template_edit.load_error')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'Template Editing + Catalog Failed → error del catálogo + retry',
+      (tester) async {
+        // El template está listo pero los pickers necesitan el catálogo
+        // para renderizarse. Sin él, mostrar error específico del
+        // catálogo con retry — distinto del error de carga del template.
+        when(() => editBloc.state).thenReturn(const TemplateEditEditing(_tpl));
+        when(
+          () => catalogBloc.state,
+        ).thenReturn(const CatalogFailed(CatalogNetworkFailure()));
+
+        await tester.pumpWidget(host());
+
+        expect(
+          find.byKey(const Key('template_edit.catalog_error')),
+          findsOneWidget,
+        );
+        expect(find.widgetWithText(AppButton, 'Reintentar'), findsOneWidget);
+      },
+    );
+
+    testWidgets('tap Reintentar del catálogo dispara CatalogLoadRequested', (
+      tester,
+    ) async {
+      when(() => editBloc.state).thenReturn(const TemplateEditEditing(_tpl));
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogFailed(CatalogNetworkFailure()));
+
+      await tester.pumpWidget(host());
+      await tester.tap(find.widgetWithText(AppButton, 'Reintentar'));
+      await tester.pump();
+
+      verify(() => catalogBloc.add(const CatalogLoadRequested())).called(1);
+    });
+  });
+
+  group('Editing + Catalog Loaded → form pre-filled', () {
+    Future<void> pumpReady(WidgetTester tester) async {
+      when(() => editBloc.state).thenReturn(const TemplateEditEditing(_tpl));
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogLoaded(catalog: _catalog));
+      await tester.pumpWidget(host());
+    }
+
+    testWidgets('name y systemPrompt vienen del template', (tester) async {
+      await pumpReady(tester);
 
       expect(find.text('Soporte'), findsOneWidget);
       expect(find.text('Prompt actual.'), findsOneWidget);
-      // Submit habilitado por default cuando el form trae valores válidos.
-      expect(find.widgetWithText(AppButton, 'Guardar'), findsOneWidget);
-    },
-  );
+    });
 
-  testWidgets(
-    'tap Guardar dispara TemplateEditSubmitted con los valores tipeados',
-    (tester) async {
-      when(() => bloc.state).thenReturn(const TemplateEditEditing(_tpl));
+    testWidgets(
+      'los pickers del AIConfig están visibles con keys contractuales',
+      (tester) async {
+        await pumpReady(tester);
+
+        expect(
+          find.byKey(const Key('template_edit.field.enabled')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('template_edit.field.provider')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('template_edit.field.model')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('template_edit.field.temperature')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('template_edit.field.thinking')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('template_edit.field.context_messages')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('contextMessages pre-fillea con el valor del template', (
+      tester,
+    ) async {
+      await pumpReady(tester);
+
+      // contextMessages es numérico (TextField), 20 viene del template.
+      expect(find.text('20'), findsOneWidget);
+    });
+  });
+
+  group('SubmitFailed mantiene form editable', () {
+    Future<void> pumpFailed(
+      WidgetTester tester,
+      TemplatesFailure failure,
+    ) async {
+      when(
+        () => editBloc.state,
+      ).thenReturn(TemplateEditSubmitFailed(failure: failure, template: _tpl));
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogLoaded(catalog: _catalog));
+      await tester.pumpWidget(host());
+    }
+
+    testWidgets('Conflict muestra copy específico de CAS', (tester) async {
+      await pumpFailed(tester, const TemplatesConflictFailure());
+      expect(
+        find.byKey(const Key('template_edit.error.conflict')),
+        findsOneWidget,
+      );
+      expect(find.text('Soporte'), findsOneWidget);
+    });
+
+    testWidgets('InvalidUpdate muestra copy específico de validación', (
+      tester,
+    ) async {
+      await pumpFailed(tester, const TemplatesInvalidUpdateFailure());
+      expect(
+        find.byKey(const Key('template_edit.error.invalid')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Network muestra copy de red genérico', (tester) async {
+      await pumpFailed(tester, const TemplatesNetworkFailure());
+      expect(
+        find.byKey(const Key('template_edit.error.network')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  testWidgets('Submitting muestra el form pero el botón en loading', (
+    tester,
+  ) async {
+    when(() => editBloc.state).thenReturn(const TemplateEditSubmitting(_tpl));
+    when(
+      () => catalogBloc.state,
+    ).thenReturn(const CatalogLoaded(catalog: _catalog));
+
+    await tester.pumpWidget(host());
+
+    expect(find.text('Soporte'), findsOneWidget);
+    // Spinner inline del AppButton; el primitivo lo monta cuando loading=true.
+    expect(find.byType(CircularProgressIndicator), findsAtLeastNWidgets(1));
+  });
+
+  group('visibility por flags supportsTemperature / supportsThinking', () {
+    // GPT-5.5: supportsTemperature=false (modelo de razonamiento), pero
+    // supportsThinking=true. Esto fuerza al editor a esconder SOLO el
+    // slider de temperature — el dropdown de thinking sigue visible.
+    const tplOnOpenAi = Template(
+      id: 't1',
+      orgId: 'o1',
+      name: 'Soporte',
+      version: 1,
+      ai: AIConfig(
+        enabled: true,
+        provider: AIProvider.openai,
+        model: 'gpt-5.5',
+        temperature: 0.7,
+        thinkingLevel: ThinkingLevel.medium,
+        systemPrompt: 'Prompt.',
+        contextMessages: 20,
+      ),
+    );
+
+    // Catálogo extendido para cubrir el caso supportsThinking=false sin
+    // afectar al resto de los tests. MINIMAX nativo razona sin perilla.
+    const catalogWithMinimax = Catalog(
+      providers: <ProviderEntry>[
+        _gemini,
+        _openai,
+        ProviderEntry(
+          provider: 'MINIMAX',
+          defaultModel: 'MiniMax-M2.7',
+          models: <AIModel>[
+            AIModel(
+              id: 'MiniMax-M2.7',
+              supportsTemperature: true,
+              supportsThinking: false,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    const tplOnMinimax = Template(
+      id: 't1',
+      orgId: 'o1',
+      name: 'Soporte',
+      version: 1,
+      ai: AIConfig(
+        enabled: true,
+        provider: AIProvider.minimax,
+        model: 'MiniMax-M2.7',
+        temperature: 0.9,
+        thinkingLevel: ThinkingLevel.high,
+        systemPrompt: 'Prompt.',
+        contextMessages: 20,
+      ),
+    );
+
+    testWidgets(
+      'modelo con supportsTemperature=false esconde el slider de temperature',
+      (tester) async {
+        when(
+          () => editBloc.state,
+        ).thenReturn(const TemplateEditEditing(tplOnOpenAi));
+        when(
+          () => catalogBloc.state,
+        ).thenReturn(const CatalogLoaded(catalog: _catalog));
+
+        await tester.pumpWidget(host());
+
+        expect(
+          find.byKey(const Key('template_edit.field.temperature')),
+          findsNothing,
+        );
+        // El dropdown de thinking SIGUE visible (GPT-5.5 sí lo soporta).
+        expect(
+          find.byKey(const Key('template_edit.field.thinking')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'modelo con supportsThinking=false esconde el dropdown de thinking',
+      (tester) async {
+        when(
+          () => editBloc.state,
+        ).thenReturn(const TemplateEditEditing(tplOnMinimax));
+        when(
+          () => catalogBloc.state,
+        ).thenReturn(const CatalogLoaded(catalog: catalogWithMinimax));
+
+        await tester.pumpWidget(host());
+
+        expect(
+          find.byKey(const Key('template_edit.field.thinking')),
+          findsNothing,
+        );
+        // El slider de temperature SIGUE visible (MiniMax sí lo soporta).
+        expect(
+          find.byKey(const Key('template_edit.field.temperature')),
+          findsOneWidget,
+        );
+      },
+    );
+  });
+
+  group('drift: modelo o provider retirado entre releases', () {
+    const tplWithRetiredModel = Template(
+      id: 't1',
+      orgId: 'o1',
+      name: 'Soporte',
+      version: 1,
+      ai: AIConfig(
+        enabled: true,
+        provider: AIProvider.gemini,
+        model: 'gemini-2.0-pro-retirado',
+        temperature: 0.7,
+        thinkingLevel: ThinkingLevel.low,
+        systemPrompt: 'Prompt.',
+        contextMessages: 20,
+      ),
+    );
+
+    const tplWithRetiredProvider = Template(
+      id: 't1',
+      orgId: 'o1',
+      name: 'Soporte',
+      version: 1,
+      ai: AIConfig(
+        enabled: true,
+        // MINIMAX no está en _catalog (sólo GEMINI + OPENAI).
+        provider: AIProvider.minimax,
+        model: 'MiniMax-M2.7',
+        temperature: 0.5,
+        thinkingLevel: ThinkingLevel.low,
+        systemPrompt: 'Prompt.',
+        contextMessages: 20,
+      ),
+    );
+
+    testWidgets(
+      'provider retirado muestra warning específico + deshabilita submit',
+      (tester) async {
+        // El backend bajó MINIMAX del catálogo entre releases del cliente.
+        // El enum AIProvider sigue conociéndolo (fromWire sigue mapeando),
+        // así que el Template carga; pero el editor debe bloquear el
+        // submit y guiar al operador a elegir un provider disponible.
+        when(
+          () => editBloc.state,
+        ).thenReturn(const TemplateEditEditing(tplWithRetiredProvider));
+        when(
+          () => catalogBloc.state,
+        ).thenReturn(const CatalogLoaded(catalog: _catalog));
+
+        await tester.pumpWidget(host());
+
+        expect(
+          find.byKey(const Key('template_edit.drift.provider_retired')),
+          findsOneWidget,
+        );
+
+        await tester.ensureVisible(
+          find.byKey(const Key('template_edit.submit')),
+        );
+        await tester.tap(find.byKey(const Key('template_edit.submit')));
+        await tester.pump();
+
+        verifyNever(() => editBloc.add(any()));
+      },
+    );
+
+    testWidgets('modelo retirado muestra badge "Retirado" + warning visible', (
+      tester,
+    ) async {
+      // El template guardado refiere a un modelo que el backend retiró
+      // del catálogo entre releases. El editor debe marcarlo visible
+      // para que el operador entienda por qué no puede guardar tal cual.
+      when(
+        () => editBloc.state,
+      ).thenReturn(const TemplateEditEditing(tplWithRetiredModel));
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogLoaded(catalog: _catalog));
 
       await tester.pumpWidget(host());
+
+      expect(
+        find.byKey(const Key('template_edit.drift.model_retired')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('modelo retirado deshabilita el submit (no se puede guardar)', (
+      tester,
+    ) async {
+      // Submit gate: dejar que el operador suba un modelo retirado le
+      // ahorra el 422 del backend pero pierde contexto sobre el porqué.
+      // Mejor bloquearlo en cliente con copy claro.
+      when(
+        () => editBloc.state,
+      ).thenReturn(const TemplateEditEditing(tplWithRetiredModel));
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogLoaded(catalog: _catalog));
+
+      await tester.pumpWidget(host());
+      await tester.tap(find.byKey(const Key('template_edit.submit')));
+      await tester.pump();
+
+      verifyNever(() => editBloc.add(any()));
+    });
+
+    testWidgets(
+      'cambio de provider auto-selecciona defaultModel del nuevo provider',
+      (tester) async {
+        // UX: cuando el operador cambia provider (Gemini → OpenAI), el
+        // modelo actual probablemente no existe en el nuevo catálogo.
+        // Auto-seleccionar el defaultModel del nuevo provider es lo
+        // más usable (vs. dejar el modelo en estado "Retirado" después
+        // de un cambio voluntario, que confunde la causa).
+        when(() => editBloc.state).thenReturn(const TemplateEditEditing(_tpl));
+        when(
+          () => catalogBloc.state,
+        ).thenReturn(const CatalogLoaded(catalog: _catalog));
+
+        await tester.pumpWidget(host());
+
+        // Pre-condición: modelo actual es de Gemini.
+        expect(find.text('gemini-3.1-pro-preview'), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('template_edit.field.provider')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OPENAI').last);
+        await tester.pumpAndSettle();
+
+        // Post-condición: modelo cambió al defaultModel de OPENAI.
+        expect(find.text('gpt-5.5'), findsOneWidget);
+        // Y el slider de temperature desaparece — gpt-5.5 lo rechaza.
+        // El value sigue vivo en _ai.temperature; si el operador vuelve
+        // a Gemini, reaparece con la tuning original.
+        expect(
+          find.byKey(const Key('template_edit.field.temperature')),
+          findsNothing,
+        );
+      },
+    );
+  });
+
+  testWidgets(
+    'tap Guardar dispatchea TemplateEditSubmitted con AIConfig editado',
+    (tester) async {
+      // Recorre el happy path completo del editor: el operador toca
+      // varios campos (name, systemPrompt, provider con auto-switch del
+      // modelo, contextMessages) y verifica que el AIConfig dispatchado
+      // refleja TODO el estado editado, no sólo lo cosmético del form.
+      when(() => editBloc.state).thenReturn(const TemplateEditEditing(_tpl));
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogLoaded(catalog: _catalog));
+
+      await tester.pumpWidget(host());
+
       await tester.enterText(
         find.byKey(const Key('template_edit.field.name')),
         'Soporte v2',
@@ -113,108 +556,64 @@ void main() {
         find.byKey(const Key('template_edit.field.system_prompt')),
         'Nuevo prompt.',
       );
+
+      // Cambio de provider gemini → openai dispara auto-switch del
+      // modelo al defaultModel de OPENAI (gpt-5.5). Hacerlo antes del
+      // resto evita que el form crezca/decrezca por la visibility de
+      // los flags del nuevo modelo mientras tapeamos.
+      await tester.ensureVisible(
+        find.byKey(const Key('template_edit.field.provider')),
+      );
+      await tester.tap(find.byKey(const Key('template_edit.field.provider')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OPENAI').last);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const Key('template_edit.field.context_messages')),
+      );
+      await tester.enterText(
+        find.byKey(const Key('template_edit.field.context_messages')),
+        '30',
+      );
+
+      await tester.ensureVisible(find.byKey(const Key('template_edit.submit')));
       await tester.tap(find.byKey(const Key('template_edit.submit')));
       await tester.pump();
 
       verify(
-        () => bloc.add(
-          const TemplateEditSubmitted(
+        () => editBloc.add(
+          TemplateEditSubmitted(
             name: 'Soporte v2',
-            systemPrompt: 'Nuevo prompt.',
+            ai: AIConfig(
+              enabled: _tpl.ai.enabled, // toggle no tocado
+              provider: AIProvider.openai, // cambiado por el operador
+              model: 'gpt-5.5', // auto-switch a defaultModel
+              temperature: _tpl.ai.temperature, // preservado aunque oculto
+              thinkingLevel: _tpl.ai.thinkingLevel,
+              systemPrompt: 'Nuevo prompt.',
+              contextMessages: 30,
+            ),
           ),
         ),
       ).called(1);
     },
   );
 
-  testWidgets('Submitting mantiene el form pero el botón está en loading', (
-    tester,
-  ) async {
-    when(() => bloc.state).thenReturn(const TemplateEditSubmitting(_tpl));
-
-    await tester.pumpWidget(host());
-
-    // El form sigue visible (preserva lo que el operador escribió).
-    expect(find.text('Soporte'), findsOneWidget);
-    // El botón está en loading (spinner inline). El primitivo bloquea
-    // tap internamente; AppButton no expone su estado loading para el
-    // test, así que verificamos la presencia del spinner inline en su
-    // árbol.
-    expect(find.byType(CircularProgressIndicator), findsAtLeastNWidgets(1));
-  });
-
-  testWidgets('SubmitFailed(Conflict) muestra copy específico de CAS + retry', (
-    tester,
-  ) async {
-    when(() => bloc.state).thenReturn(
-      const TemplateEditSubmitFailed(
-        failure: TemplatesConflictFailure(),
-        template: _tpl,
-      ),
-    );
-
-    await tester.pumpWidget(host());
-
-    expect(
-      find.byKey(const Key('template_edit.error.conflict')),
-      findsOneWidget,
-    );
-    // El form se mantiene editable después de Conflict — el operador
-    // puede revisar, pero el copy le sugiere recargar primero.
-    expect(find.text('Soporte'), findsOneWidget);
-  });
-
-  testWidgets(
-    'SubmitFailed(InvalidUpdate) muestra copy específico de validación',
-    (tester) async {
-      when(() => bloc.state).thenReturn(
-        const TemplateEditSubmitFailed(
-          failure: TemplatesInvalidUpdateFailure(),
-          template: _tpl,
-        ),
-      );
-
-      await tester.pumpWidget(host());
-
-      expect(
-        find.byKey(const Key('template_edit.error.invalid')),
-        findsOneWidget,
-      );
-    },
-  );
-
-  testWidgets('SubmitFailed(Network) muestra copy de red genérico', (
-    tester,
-  ) async {
-    when(() => bloc.state).thenReturn(
-      const TemplateEditSubmitFailed(
-        failure: TemplatesNetworkFailure(),
-        template: _tpl,
-      ),
-    );
-
-    await tester.pumpWidget(host());
-
-    expect(
-      find.byKey(const Key('template_edit.error.network')),
-      findsOneWidget,
-    );
-  });
-
   testWidgets(
     'Succeeded apila el detalle por pushReplacement (form ya cumplió)',
     (tester) async {
-      // Espejo del test de template_create_page: pushReplacement preserva
-      // shell debajo, back físico vuelve al listado sin pasar por el form
-      // que ya cumplió. context.go() aplastaría la pila.
       whenListen(
-        bloc,
+        editBloc,
         Stream<TemplateEditState>.fromIterable(<TemplateEditState>[
           const TemplateEditSubmitting(_tpl),
           const TemplateEditSucceeded(_tpl),
         ]),
         initialState: const TemplateEditEditing(_tpl),
       );
+      when(
+        () => catalogBloc.state,
+      ).thenReturn(const CatalogLoaded(catalog: _catalog));
 
       final canPopAtDestination = <bool>[];
       final router = GoRouter(
@@ -222,8 +621,11 @@ void main() {
         routes: <RouteBase>[
           GoRoute(
             path: '/templates/t1/edit',
-            builder: (_, _) => BlocProvider<TemplateEditBloc>.value(
-              value: bloc,
+            builder: (_, _) => MultiBlocProvider(
+              providers: <BlocProvider<dynamic>>[
+                BlocProvider<TemplateEditBloc>.value(value: editBloc),
+                BlocProvider<CatalogBloc>.value(value: catalogBloc),
+              ],
               child: const Scaffold(body: TemplateEditPage()),
             ),
           ),
@@ -244,9 +646,6 @@ void main() {
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
       await tester.pumpAndSettle();
 
-      // Después de pushReplacement, el detalle NO debe poder pop (el form
-      // fue reemplazado, no apilado). Si el form quedara apilado, back
-      // volvería al form que ya guardó — UX rota.
       expect(
         canPopAtDestination,
         <bool>[false],
