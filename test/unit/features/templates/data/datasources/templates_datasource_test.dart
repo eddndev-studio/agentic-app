@@ -905,4 +905,245 @@ void main() {
       );
     });
   });
+
+  group('DioTemplatesDatasource.addVarDef', () {
+    Map<String, dynamic> defJson({
+      String id = 'vd_new',
+      String name = 'saldo',
+      String type = 'text',
+      String def = 'x',
+      String description = '',
+    }) => <String, dynamic>{
+      'id': id,
+      'name': name,
+      'type': type,
+      'default': def,
+      'description': description,
+    };
+
+    test('201: serializa body completo y devuelve VariableDef parseada', () async {
+      // El backend espera {name, type, default, description, version} y
+      // devuelve el VarDefResp creado (sin la nueva version del Template
+      // padre — el bloc refresca con un re-list después).
+      final captured = <Map<String, dynamic>>[];
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/templates/t1/variable-definitions',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((invocation) async {
+        captured.add(
+          invocation.namedArguments[#data] as Map<String, dynamic>,
+        );
+        return respMap(
+          201,
+          body: defJson(),
+          path: '/templates/t1/variable-definitions',
+        );
+      });
+
+      final got = await ds.addVarDef(
+        templateId: 't1',
+        name: 'saldo',
+        type: VarType.text,
+        defaultValue: 'x',
+        description: 'saldo del cliente',
+        version: 1,
+      );
+
+      expect(got.id, 'vd_new');
+      expect(got.name, 'saldo');
+      expect(got.type, VarType.text);
+      expect(got.defaultValue, 'x');
+      expect(captured.single, <String, dynamic>{
+        'name': 'saldo',
+        'type': 'text',
+        'default': 'x',
+        'description': 'saldo del cliente',
+        'version': 1,
+      });
+    });
+
+    test(
+      '409 → TemplatesConflictFailure (nombre duplicado o version stale)',
+      () async {
+        // Backend lumps {duplicate name, stale CAS, in-use} bajo 409 sin
+        // discriminar. El cliente trata todos como Conflict — el copy
+        // genérico ("La plantilla cambió, recarga") cubre el caso común.
+        when(
+          () => dio.post<Map<String, dynamic>>(
+            '/templates/t1/variable-definitions',
+            data: any(named: 'data'),
+          ),
+        ).thenThrow(
+          badResponse(409, path: '/templates/t1/variable-definitions'),
+        );
+
+        await expectLater(
+          () => ds.addVarDef(
+            templateId: 't1',
+            name: 'saldo',
+            type: VarType.text,
+            defaultValue: 'x',
+            description: '',
+            version: 1,
+          ),
+          throwsA(isA<TemplatesConflictFailure>()),
+        );
+      },
+    );
+
+    test(
+      '422 → TemplatesInvalidUpdateFailure (nombre o tipo inválido)',
+      () async {
+        when(
+          () => dio.post<Map<String, dynamic>>(
+            '/templates/t1/variable-definitions',
+            data: any(named: 'data'),
+          ),
+        ).thenThrow(
+          badResponse(422, path: '/templates/t1/variable-definitions'),
+        );
+
+        await expectLater(
+          () => ds.addVarDef(
+            templateId: 't1',
+            name: 'con espacio',
+            type: VarType.text,
+            defaultValue: '',
+            description: '',
+            version: 1,
+          ),
+          throwsA(isA<TemplatesInvalidUpdateFailure>()),
+        );
+      },
+    );
+
+    test('404 → TemplatesNotFoundFailure (Template padre no existe)', () async {
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/templates/desconocido/variable-definitions',
+          data: any(named: 'data'),
+        ),
+      ).thenThrow(
+        badResponse(404, path: '/templates/desconocido/variable-definitions'),
+      );
+
+      await expectLater(
+        () => ds.addVarDef(
+          templateId: 'desconocido',
+          name: 'x',
+          type: VarType.text,
+          defaultValue: '',
+          description: '',
+          version: 1,
+        ),
+        throwsA(isA<TemplatesNotFoundFailure>()),
+      );
+    });
+
+    test('500 → TemplatesServerFailure', () async {
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/templates/t1/variable-definitions',
+          data: any(named: 'data'),
+        ),
+      ).thenThrow(
+        badResponse(500, path: '/templates/t1/variable-definitions'),
+      );
+
+      await expectLater(
+        () => ds.addVarDef(
+          templateId: 't1',
+          name: 'x',
+          type: VarType.text,
+          defaultValue: '',
+          description: '',
+          version: 1,
+        ),
+        throwsA(isA<TemplatesServerFailure>()),
+      );
+    });
+
+    test('sin conexión → TemplatesNetworkFailure', () async {
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/templates/t1/variable-definitions',
+          data: any(named: 'data'),
+        ),
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(
+            path: '/templates/t1/variable-definitions',
+          ),
+          type: DioExceptionType.connectionError,
+        ),
+      );
+
+      await expectLater(
+        () => ds.addVarDef(
+          templateId: 't1',
+          name: 'x',
+          type: VarType.text,
+          defaultValue: '',
+          description: '',
+          version: 1,
+        ),
+        throwsA(isA<TemplatesNetworkFailure>()),
+      );
+    });
+
+    test('body nulo → UnknownTemplatesFailure (contrato roto)', () async {
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/templates/t1/variable-definitions',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => respMap(
+          201,
+          path: '/templates/t1/variable-definitions',
+        ),
+      );
+
+      await expectLater(
+        () => ds.addVarDef(
+          templateId: 't1',
+          name: 'x',
+          type: VarType.text,
+          defaultValue: '',
+          description: '',
+          version: 1,
+        ),
+        throwsA(isA<UnknownTemplatesFailure>()),
+      );
+    });
+
+    test('tipo desconocido en respuesta → ArgumentError (fail-loud)', () async {
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/templates/t1/variable-definitions',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => respMap(
+          201,
+          body: defJson(type: 'number'),
+          path: '/templates/t1/variable-definitions',
+        ),
+      );
+
+      await expectLater(
+        () => ds.addVarDef(
+          templateId: 't1',
+          name: 'x',
+          type: VarType.text,
+          defaultValue: '',
+          description: '',
+          version: 1,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
 }
