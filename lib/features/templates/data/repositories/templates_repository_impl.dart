@@ -50,4 +50,19 @@ class TemplatesRepositoryImpl implements TemplatesRepository {
     description: description,
     version: version,
   );
+
+  @override
+  Future<void> updateVarDef({
+    required String varDefId,
+    required int version,
+    String? name,
+    String? defaultValue,
+    String? description,
+  }) => _ds.updateVarDef(
+    varDefId: varDefId,
+    version: version,
+    name: name,
+    defaultValue: defaultValue,
+    description: description,
+  );
 }

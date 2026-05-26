@@ -64,6 +64,26 @@ abstract interface class TemplatesDatasource {
     required int version,
   });
 
+  /// `PATCH /variable-definitions/:id` body con SÓLO los campos a
+  /// cambiar + `version` para CAS optimista sobre el Template padre.
+  /// El path NO lleva templateId — el backend resuelve la Template
+  /// desde el id opaco del var-def en el dominio.
+  ///
+  /// Patch only-changed: argumento `null` ⇒ no aparece en el body
+  /// (no-op del campo). Cadena vacía es set explícito (clear). El
+  /// backend devuelve 200 con body vacío; no hay snapshot que parsear.
+  ///
+  /// Mismos cubos de error que addVarDef. El 409 aquí incluye el
+  /// rename "in use" (renombrar una variable activa con valores
+  /// asignados en algún bot — el dominio lo bloquea con E2).
+  Future<void> updateVarDef({
+    required String varDefId,
+    required int version,
+    String? name,
+    String? defaultValue,
+    String? description,
+  });
+
   /// `PUT /templates/:id` body `{name, version, ai?}` con concurrencia
   /// optimista (CAS). 409 (`ErrTemplateConflict`) ⇒ `TemplatesConflictFailure`
   /// — la version del cliente está desfasada; el operador debe recargar el
@@ -257,6 +277,43 @@ class DioTemplatesDatasource implements TemplatesDatasource {
     } on DioException catch (e) {
       // Mismo patrón del PUT: las mutaciones tienen cubos distintos a los
       // GET para 409 (Conflict) y 422 (InvalidUpdate, no InvalidName).
+      if (e.type == DioExceptionType.badResponse) {
+        final status = e.response?.statusCode;
+        if (status == 409) throw const TemplatesConflictFailure();
+        if (status == 422) throw const TemplatesInvalidUpdateFailure();
+      }
+      throw _mapDioException(e);
+    } on FormatException {
+      throw const UnknownTemplatesFailure();
+    } on TypeError {
+      throw const UnknownTemplatesFailure();
+    }
+  }
+
+  @override
+  Future<void> updateVarDef({
+    required String varDefId,
+    required int version,
+    String? name,
+    String? defaultValue,
+    String? description,
+  }) async {
+    try {
+      // Patch only-changed: el body sólo incluye claves para los campos
+      // provistos. Argumento `null` ⇒ no aparece (equivalente al `*string`
+      // nil del backend). Cadena vacía es set explícito.
+      final body = <String, dynamic>{'version': version};
+      if (name != null) body['name'] = name;
+      if (defaultValue != null) body['default'] = defaultValue;
+      if (description != null) body['description'] = description;
+
+      await _dio.patch<dynamic>(
+        '/variable-definitions/$varDefId',
+        data: body,
+      );
+    } on TemplatesFailure {
+      rethrow;
+    } on DioException catch (e) {
       if (e.type == DioExceptionType.badResponse) {
         final status = e.response?.statusCode;
         if (status == 409) throw const TemplatesConflictFailure();

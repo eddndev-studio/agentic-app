@@ -49,4 +49,19 @@ abstract interface class TemplatesRepository {
     required String description,
     required int version,
   });
+
+  /// Edita una variable-definition (PATCH /variable-definitions/:id con
+  /// CAS sobre el Template padre). Sólo los campos provistos se mandan
+  /// (only-changed); `null` ⇒ no-op del campo, `''` ⇒ clear explícito.
+  /// 409 (rename in-use o stale) ⇒ `TemplatesConflictFailure`; 422 ⇒
+  /// `TemplatesInvalidUpdateFailure`; 404 (var-def no existe) ⇒
+  /// `TemplatesNotFoundFailure`. El backend devuelve 200 sin body; el
+  /// llamador refetchea el listado para refrescar el snapshot.
+  Future<void> updateVarDef({
+    required String varDefId,
+    required int version,
+    String? name,
+    String? defaultValue,
+    String? description,
+  });
 }

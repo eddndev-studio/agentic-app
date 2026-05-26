@@ -244,4 +244,52 @@ void main() {
       );
     });
   });
+
+  group('TemplatesRepositoryImpl.updateVarDef (delegate trivial)', () {
+    test('forwarda named args incluyendo nullables al datasource', () async {
+      when(
+        () => ds.updateVarDef(
+          varDefId: 'vd_x',
+          version: 2,
+          name: 'otro',
+          defaultValue: null,
+          description: '',
+        ),
+      ).thenAnswer((_) async {});
+
+      await repo.updateVarDef(
+        varDefId: 'vd_x',
+        version: 2,
+        name: 'otro',
+        description: '',
+      );
+
+      verify(
+        () => ds.updateVarDef(
+          varDefId: 'vd_x',
+          version: 2,
+          name: 'otro',
+          defaultValue: null,
+          description: '',
+        ),
+      ).called(1);
+    });
+
+    test('propaga TemplatesConflictFailure sin envolver', () async {
+      when(
+        () => ds.updateVarDef(
+          varDefId: 'vd_x',
+          version: 1,
+          name: 'otro',
+          defaultValue: null,
+          description: null,
+        ),
+      ).thenAnswer((_) => Future<void>.error(const TemplatesConflictFailure()));
+
+      await expectLater(
+        () => repo.updateVarDef(varDefId: 'vd_x', version: 1, name: 'otro'),
+        throwsA(isA<TemplatesConflictFailure>()),
+      );
+    });
+  });
 }
