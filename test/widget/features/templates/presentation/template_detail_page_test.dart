@@ -552,7 +552,14 @@ void main() {
         expect(find.byType(VarDefFormSheet), findsOneWidget);
         // El sheet refleja modo edit (title + valores pre-fillados).
         expect(find.text('Editar variable'), findsOneWidget);
-        expect(find.text('Saludo personalizado'), findsOneWidget);
+        // El name está en el field name del sheet (descendiente del sheet).
+        expect(
+          find.descendant(
+            of: find.byType(VarDefFormSheet),
+            matching: find.text('Saludo personalizado'),
+          ),
+          findsOneWidget,
+        );
       },
     );
 

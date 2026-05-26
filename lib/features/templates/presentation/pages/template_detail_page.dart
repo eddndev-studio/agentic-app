@@ -309,25 +309,33 @@ class _VarDefsList extends StatelessWidget {
             ),
           )
         else
-          for (final d in defs) _VarDefRow(def: d),
+          for (final d in defs)
+            _VarDefRow(
+              def: d,
+              onTap: () => _openSheet(context, defs, editing: d),
+            ),
         if (showAddButton) ...<Widget>[
           const SizedBox(height: AppTokens.sp3),
           AppButton.text(
             key: const Key('var_defs.add_button'),
             label: 'Agregar variable',
             icon: Icons.add,
-            onPressed: () => _openAddSheet(context, defs),
+            onPressed: () => _openSheet(context, defs),
           ),
         ],
       ],
     );
   }
 
-  /// Monta el sheet de creación. El sheet vive sobre el bloc del detail
-  /// page; usamos `.value` para pasarle la misma instancia (el modal
-  /// crea un nuevo context que no hereda de los BlocProviders del padre
-  /// por default).
-  void _openAddSheet(BuildContext context, List<VariableDef> defs) {
+  /// Monta el sheet de creación o edición. El sheet vive sobre el bloc
+  /// del detail page; usamos `.value` para pasarle la misma instancia
+  /// (el modal crea un nuevo context que no hereda de los
+  /// BlocProviders del padre por default).
+  void _openSheet(
+    BuildContext context,
+    List<VariableDef> defs, {
+    VariableDef? editing,
+  }) {
     final bloc = context.read<VarDefsBloc>();
     showModalBottomSheet<void>(
       context: context,
@@ -336,6 +344,7 @@ class _VarDefsList extends StatelessWidget {
         value: bloc,
         child: VarDefFormSheet(
           existingNames: defs.map((d) => d.name).toSet(),
+          editing: editing,
         ),
       ),
     );
@@ -343,52 +352,62 @@ class _VarDefsList extends StatelessWidget {
 }
 
 class _VarDefRow extends StatelessWidget {
-  const _VarDefRow({required this.def});
+  const _VarDefRow({required this.def, required this.onTap});
 
   final VariableDef def;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              SizedBox(
-                width: 180,
-                // El placeholder de interpolación `{{name}}` es la forma en
-                // que el operador referencia la variable desde el prompt;
-                // mostrarla así es más útil que el name pelado.
-                child: SelectableText(
-                  '{{${def.name}}}',
-                  style: t.bodyMedium?.copyWith(
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w600,
+    return InkWell(
+      key: Key('var_defs.row.${def.id}'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTokens.radiusField),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 180,
+                  // El placeholder de interpolación `{{name}}` es la forma
+                  // en que el operador referencia la variable desde el
+                  // prompt; mostrarla así es más útil que el name pelado.
+                  // No usamos SelectableText: el row es tap-target del
+                  // edit sheet y el gesture detector interno del Selectable
+                  // ganaría el tap. La copia se puede agregar via
+                  // long-press menu en un slice futuro si se pide.
+                  child: Text(
+                    '{{${def.name}}}',
+                    style: t.bodyMedium?.copyWith(
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  def.defaultValue.isEmpty ? '—' : def.defaultValue,
-                  style: t.bodyMedium?.copyWith(
-                    color: def.defaultValue.isEmpty ? AppTokens.text2 : null,
+                Expanded(
+                  child: Text(
+                    def.defaultValue.isEmpty ? '—' : def.defaultValue,
+                    style: t.bodyMedium?.copyWith(
+                      color: def.defaultValue.isEmpty ? AppTokens.text2 : null,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          if (def.description.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                def.description,
-                style: t.bodySmall?.copyWith(color: AppTokens.text2),
-              ),
+              ],
             ),
-        ],
+            if (def.description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  def.description,
+                  style: t.bodySmall?.copyWith(color: AppTokens.text2),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
