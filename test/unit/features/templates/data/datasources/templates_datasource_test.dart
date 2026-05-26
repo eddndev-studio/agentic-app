@@ -1314,4 +1314,95 @@ void main() {
       );
     });
   });
+
+  group('DioTemplatesDatasource.removeVarDef', () {
+    test('204: version va como query string (DELETE sin body)', () async {
+      // Contrato del backend: `DELETE /variable-definitions/:id?version=N`.
+      // El body queda vacío — clientes HTTP que no soportan body en
+      // DELETE (algunos HTTP/1.1 strict) funcionan limpio así.
+      final captured = <Map<String, dynamic>?>[];
+      when(
+        () => dio.delete<dynamic>(
+          '/variable-definitions/vd_x',
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenAnswer((invocation) async {
+        captured.add(
+          invocation.namedArguments[#queryParameters]
+              as Map<String, dynamic>?,
+        );
+        return Response<dynamic>(
+          requestOptions: RequestOptions(path: '/variable-definitions/vd_x'),
+          statusCode: 204,
+        );
+      });
+
+      await ds.removeVarDef(varDefId: 'vd_x', version: 3);
+
+      expect(captured.single, <String, dynamic>{'version': 3});
+    });
+
+    test('409 → TemplatesConflictFailure (E2 in-use o stale CAS)', () async {
+      // Backend: ErrVariableInUse cuando algún bot tiene un valor para
+      // esta variable. El cliente trata como Conflict (mismo bucket).
+      when(
+        () => dio.delete<dynamic>(
+          '/variable-definitions/vd_x',
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenThrow(badResponse(409, path: '/variable-definitions/vd_x'));
+
+      await expectLater(
+        () => ds.removeVarDef(varDefId: 'vd_x', version: 1),
+        throwsA(isA<TemplatesConflictFailure>()),
+      );
+    });
+
+    test('404 → TemplatesNotFoundFailure (var-def no existe)', () async {
+      when(
+        () => dio.delete<dynamic>(
+          '/variable-definitions/vd_nope',
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenThrow(badResponse(404, path: '/variable-definitions/vd_nope'));
+
+      await expectLater(
+        () => ds.removeVarDef(varDefId: 'vd_nope', version: 1),
+        throwsA(isA<TemplatesNotFoundFailure>()),
+      );
+    });
+
+    test('500 → TemplatesServerFailure', () async {
+      when(
+        () => dio.delete<dynamic>(
+          '/variable-definitions/vd_x',
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenThrow(badResponse(500, path: '/variable-definitions/vd_x'));
+
+      await expectLater(
+        () => ds.removeVarDef(varDefId: 'vd_x', version: 1),
+        throwsA(isA<TemplatesServerFailure>()),
+      );
+    });
+
+    test('sin conexión → TemplatesNetworkFailure', () async {
+      when(
+        () => dio.delete<dynamic>(
+          '/variable-definitions/vd_x',
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/variable-definitions/vd_x'),
+          type: DioExceptionType.connectionError,
+        ),
+      );
+
+      await expectLater(
+        () => ds.removeVarDef(varDefId: 'vd_x', version: 1),
+        throwsA(isA<TemplatesNetworkFailure>()),
+      );
+    });
+  });
 }
