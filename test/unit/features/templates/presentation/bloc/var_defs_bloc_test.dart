@@ -105,5 +105,19 @@ void main() {
         equals(const VarDefsFailed(TemplatesNetworkFailure())),
       );
     });
+
+    test('Loaded expone la version vigente de la Template padre', () {
+      // El editor CRUD necesita la version del Template para mandar el
+      // CAS en POST/PATCH/DELETE de var-defs. La fuente de verdad es el
+      // wrapper `listVarDefsResp.version` que viaja en el GET del
+      // listado; el bloc lo expone como parte del Loaded.
+      const loaded = VarDefsLoaded(_defs, 7);
+      expect(loaded.version, 7);
+      expect(
+        loaded,
+        isNot(equals(const VarDefsLoaded(_defs, 8))),
+        reason: 'la version forma parte de la equality del state',
+      );
+    });
   });
 }
