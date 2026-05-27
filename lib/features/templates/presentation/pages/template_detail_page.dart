@@ -81,42 +81,54 @@ class _LoadedView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              AppAvatar(name: template.name, size: 64),
-              const SizedBox(width: AppTokens.sp4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          AppCard(
+            key: const Key('template_detail.card.header'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
                   children: <Widget>[
-                    Text(template.name, style: textTheme.titleLarge),
-                    const SizedBox(height: 2),
-                    ProviderBadge(provider: ai.provider),
+                    AppAvatar(name: template.name, size: 64),
+                    const SizedBox(width: AppTokens.sp4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(template.name, style: textTheme.titleLarge),
+                          const SizedBox(height: 2),
+                          ProviderBadge(provider: ai.provider),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTokens.sp6),
-          Wrap(
-            spacing: AppTokens.sp2,
-            runSpacing: AppTokens.sp2,
-            children: <Widget>[
-              AppPill.outline(label: 'v${template.version}'),
-              // IA on/off es estado de configuración, no error: primary
-              // cuando está habilitada, neutral cuando no — danger queda
-              // reservado para fallos reales (load errors, destructive).
-              if (ai.enabled)
-                const AppPill.primary(
-                  label: 'IA habilitada',
-                  dot: AppPillDot.active,
-                )
-              else
-                const AppPill.neutral(
-                  label: 'IA deshabilitada',
-                  dot: AppPillDot.paused,
+                const SizedBox(height: AppTokens.sp4),
+                Wrap(
+                  spacing: AppTokens.sp2,
+                  runSpacing: AppTokens.sp2,
+                  children: <Widget>[
+                    AppPill.outline(label: 'v${template.version}'),
+                    // IA on/off es estado de configuración, no error: primary
+                    // cuando está habilitada, neutral cuando no — danger queda
+                    // reservado para fallos reales (load errors, destructive).
+                    if (ai.enabled)
+                      const AppPill.primary(
+                        label: 'IA habilitada',
+                        dot: AppPillDot.active,
+                      )
+                    else
+                      const AppPill.neutral(
+                        label: 'IA deshabilitada',
+                        dot: AppPillDot.paused,
+                      ),
+                  ],
                 ),
-            ],
+                const SizedBox(height: AppTokens.sp5),
+                _EditButton(template: template),
+                const SizedBox(height: AppTokens.sp3),
+                _CreateBotButton(template: template),
+              ],
+            ),
           ),
           const SizedBox(height: AppTokens.sp6),
           AppCard(
@@ -182,10 +194,6 @@ class _LoadedView extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: AppTokens.sp7),
-          _EditButton(template: template),
-          const SizedBox(height: AppTokens.sp3),
-          _CreateBotButton(template: template),
         ],
       ),
     );
