@@ -44,6 +44,31 @@ abstract interface class TriggersDatasource {
     required TriggerScope scope,
     required bool isActive,
   });
+
+  /// `PUT /triggers/:triggerId` con documento completo (no PATCH). El
+  /// backend reemplaza el trigger reusando ID/OrgID/TemplateID/FlowID/
+  /// CreatedAt del existente — el `flowId` NO se cambia desde el cliente
+  /// (decisión backend; mover un trigger entre flows requiere borrar y
+  /// recrear). Tampoco viaja en el body: enviarlo sería ruido — el
+  /// `triggerOptionsFrom` del backend no aplica `WithFlow`.
+  ///
+  /// PUT replace-completo: omitir `isActive`/`scope` reaplicaría sus
+  /// defaults (`true`/`BOTH`) — el cliente siempre los envía aunque no
+  /// cambien para no reactivar un trigger pausado al editar otra cosa.
+  ///
+  /// 422 → [TriggersInvalidFailure]. 404 → [TriggersNotFoundFailure]
+  /// (el trigger fue borrado por otro operador entre el listado y el
+  /// PUT; el sheet debe forzar refresh).
+  Future<Trigger> updateTrigger({
+    required String triggerId,
+    required TriggerType triggerType,
+    required MatchType? matchType,
+    required String keyword,
+    required String labelId,
+    required LabelAction? labelAction,
+    required TriggerScope scope,
+    required bool isActive,
+  });
 }
 
 class DioTriggersDatasource implements TriggersDatasource {
@@ -103,6 +128,52 @@ class DioTriggersDatasource implements TriggersDatasource {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         '/templates/$templateId/triggers',
+        data: body,
+      );
+      final respBody = res.data;
+      if (respBody == null) {
+        throw const UnknownTriggersFailure();
+      }
+      return TriggersMapper.triggerRespToEntity(
+        TriggerResp.fromJson(respBody),
+      );
+    } on TriggersFailure {
+      rethrow;
+    } on DioException catch (e) {
+      throw _mapMutationDioException(e);
+    } on FormatException {
+      throw const UnknownTriggersFailure();
+    } on TypeError {
+      throw const UnknownTriggersFailure();
+    }
+  }
+
+  @override
+  Future<Trigger> updateTrigger({
+    required String triggerId,
+    required TriggerType triggerType,
+    required MatchType? matchType,
+    required String keyword,
+    required String labelId,
+    required LabelAction? labelAction,
+    required TriggerScope scope,
+    required bool isActive,
+  }) async {
+    final body = <String, dynamic>{
+      'type': triggerType.toWire(),
+      'scope': scope.toWire(),
+      'isActive': isActive,
+    };
+    if (triggerType == TriggerType.text) {
+      body['matchType'] = matchType!.toWire();
+      body['keyword'] = keyword;
+    } else {
+      body['labelId'] = labelId;
+      body['labelAction'] = labelAction!.toWire();
+    }
+    try {
+      final res = await _dio.put<Map<String, dynamic>>(
+        '/triggers/$triggerId',
         data: body,
       );
       final respBody = res.data;
