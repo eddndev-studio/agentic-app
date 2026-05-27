@@ -59,13 +59,8 @@ class FlowSettingsTab extends StatelessWidget {
             :final failure,
           ) =>
             (flow, siblings, siblingsFailed, false, failure),
-          FlowDetailLoading() || FlowDetailFailed() => (
-            null,
-            const <fdom.Flow>[],
-            false,
-            false,
-            null,
-          ),
+          FlowDetailLoading() ||
+          FlowDetailFailed() => (null, const <fdom.Flow>[], false, false, null),
         };
 
         if (flow == null) {
@@ -122,12 +117,21 @@ class _SettingsFormState extends State<_SettingsForm> {
       // 0 ⇒ campo vacío para que el placeholder "Sin límite" sea visible.
       text: widget.flow.usageLimit > 0 ? widget.flow.usageLimit.toString() : '',
     );
+    _usageLimitCtrl.addListener(_onUsageLimitChanged);
     _excludes = <String>{...widget.flow.excludesFlows};
+  }
+
+  void _onUsageLimitChanged() {
+    // El dirty-check depende del texto del field; un setState vacío basta
+    // para que el botón Guardar se rebaja/habilita en cada keystroke.
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _usageLimitCtrl.dispose();
+    _usageLimitCtrl
+      ..removeListener(_onUsageLimitChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -185,11 +189,7 @@ class _SettingsFormState extends State<_SettingsForm> {
             textTheme: textTheme,
           ),
           const SizedBox(height: AppTokens.sp6),
-          _UsageLimitField(
-            controller: _usageLimitCtrl,
-            onChanged: () => setState(() {}),
-            textTheme: textTheme,
-          ),
+          _UsageLimitField(controller: _usageLimitCtrl, textTheme: textTheme),
           const SizedBox(height: AppTokens.sp6),
           _ExcludesPicker(
             siblings: widget.siblings,
@@ -271,23 +271,17 @@ class _CooldownField extends StatelessWidget {
 }
 
 class _UsageLimitField extends StatelessWidget {
-  const _UsageLimitField({
-    required this.controller,
-    required this.onChanged,
-    required this.textTheme,
-  });
+  const _UsageLimitField({required this.controller, required this.textTheme});
 
   final TextEditingController controller;
-  final VoidCallback onChanged;
   final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
-    // Cualquier cambio rebota onChanged para que el dirty-check del
-    // padre se reevalúe.
-    controller.removeListener(onChanged);
-    controller.addListener(onChanged);
-    final isUnlimited = controller.text.trim().isEmpty || controller.text == '0';
+    // El padre cabla el listener una sola vez en initState (es donde
+    // vive el controller); este widget solo pinta.
+    final isUnlimited =
+        controller.text.trim().isEmpty || controller.text == '0';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

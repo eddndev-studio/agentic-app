@@ -70,11 +70,10 @@ void main() {
       },
       act: (bloc) => bloc.add(const FlowDetailLoadRequested()),
       expect: () => const <FlowDetailState>[
-        FlowDetailLoaded(
-          _flow,
-          <Flow>[_sibling1, _sibling2],
-          siblingsFailed: false,
-        ),
+        FlowDetailLoaded(_flow, <Flow>[
+          _sibling1,
+          _sibling2,
+        ], siblingsFailed: false),
       ],
       verify: (_) {
         verify(() => repo.flowById('f1')).called(1);
@@ -157,8 +156,12 @@ void main() {
     );
 
     test('Loaded value-equality', () {
-      const a = FlowDetailLoaded(_flow, <Flow>[_sibling1], siblingsFailed: false);
-      const b = FlowDetailLoaded(_flow, <Flow>[_sibling1], siblingsFailed: false);
+      const a = FlowDetailLoaded(_flow, <Flow>[
+        _sibling1,
+      ], siblingsFailed: false);
+      const b = FlowDetailLoaded(_flow, <Flow>[
+        _sibling1,
+      ], siblingsFailed: false);
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
     });
@@ -202,11 +205,9 @@ void main() {
         ).thenAnswer((_) async => flowV4);
         return FlowDetailBloc(repo: repo, id: 'f1');
       },
-      seed: () => const FlowDetailLoaded(
-        _flow,
-        <Flow>[_sibling1],
-        siblingsFailed: false,
-      ),
+      seed: () => const FlowDetailLoaded(_flow, <Flow>[
+        _sibling1,
+      ], siblingsFailed: false),
       act: (bloc) => bloc.add(
         const FlowDetailUpdateSettingsRequested(
           cooldownMs: 5000,
@@ -215,11 +216,9 @@ void main() {
         ),
       ),
       expect: () => const <FlowDetailState>[
-        FlowDetailSettingsSaving(
-          _flow,
-          <Flow>[_sibling1],
-          siblingsFailed: false,
-        ),
+        FlowDetailSettingsSaving(_flow, <Flow>[
+          _sibling1,
+        ], siblingsFailed: false),
         FlowDetailLoading(),
         FlowDetailLoaded(flowV4, <Flow>[_sibling1], siblingsFailed: false),
       ],
@@ -255,11 +254,10 @@ void main() {
         ).thenThrow(const FlowsConflictFailure());
         return FlowDetailBloc(repo: repo, id: 'f1');
       },
-      seed: () => const FlowDetailLoaded(
-        _flow,
-        <Flow>[_sibling1, _sibling2],
-        siblingsFailed: false,
-      ),
+      seed: () => const FlowDetailLoaded(_flow, <Flow>[
+        _sibling1,
+        _sibling2,
+      ], siblingsFailed: false),
       act: (bloc) => bloc.add(
         const FlowDetailUpdateSettingsRequested(
           cooldownMs: 0,
@@ -268,11 +266,10 @@ void main() {
         ),
       ),
       expect: () => const <FlowDetailState>[
-        FlowDetailSettingsSaving(
-          _flow,
-          <Flow>[_sibling1, _sibling2],
-          siblingsFailed: false,
-        ),
+        FlowDetailSettingsSaving(_flow, <Flow>[
+          _sibling1,
+          _sibling2,
+        ], siblingsFailed: false),
         FlowDetailSettingsSaveFailed(
           _flow,
           <Flow>[_sibling1, _sibling2],
@@ -298,11 +295,8 @@ void main() {
         ).thenThrow(const FlowsInvalidSettingsFailure());
         return FlowDetailBloc(repo: repo, id: 'f1');
       },
-      seed: () => const FlowDetailLoaded(
-        _flow,
-        <Flow>[],
-        siblingsFailed: false,
-      ),
+      seed: () =>
+          const FlowDetailLoaded(_flow, <Flow>[], siblingsFailed: false),
       act: (bloc) => bloc.add(
         const FlowDetailUpdateSettingsRequested(
           cooldownMs: -1,

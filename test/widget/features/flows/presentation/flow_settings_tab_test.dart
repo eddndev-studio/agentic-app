@@ -81,28 +81,45 @@ void main() {
   );
 
   group('FlowSettingsTab — render inicial', () {
-    testWidgets('Loaded: muestra slider cooldown, number field usageLimit, multi-select de siblings', (
-      tester,
-    ) async {
-      when(() => bloc.state).thenReturn(
-        FlowDetailLoaded(
-          _flow(cooldownMs: 5000, usageLimit: 3, excludesFlows: <String>['f2']),
-          const <fdom.Flow>[_sib1, _sib2],
-          siblingsFailed: false,
-        ),
-      );
+    testWidgets(
+      'Loaded: muestra slider cooldown, number field usageLimit, multi-select de siblings',
+      (tester) async {
+        when(() => bloc.state).thenReturn(
+          FlowDetailLoaded(
+            _flow(
+              cooldownMs: 5000,
+              usageLimit: 3,
+              excludesFlows: <String>['f2'],
+            ),
+            const <fdom.Flow>[_sib1, _sib2],
+            siblingsFailed: false,
+          ),
+        );
 
-      await tester.pumpWidget(host());
+        await tester.pumpWidget(host());
 
-      expect(find.byKey(const Key('flow_settings.cooldown.slider')), findsOneWidget);
-      expect(find.byKey(const Key('flow_settings.usage_limit.field')), findsOneWidget);
-      // Chip por cada sibling.
-      expect(find.byKey(const Key('flow_settings.excludes.chip.f2')), findsOneWidget);
-      expect(find.byKey(const Key('flow_settings.excludes.chip.f3')), findsOneWidget);
-      // El nombre del sibling es visible.
-      expect(find.text('Despedida'), findsOneWidget);
-      expect(find.text('Recordatorio'), findsOneWidget);
-    });
+        expect(
+          find.byKey(const Key('flow_settings.cooldown.slider')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('flow_settings.usage_limit.field')),
+          findsOneWidget,
+        );
+        // Chip por cada sibling.
+        expect(
+          find.byKey(const Key('flow_settings.excludes.chip.f2')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('flow_settings.excludes.chip.f3')),
+          findsOneWidget,
+        );
+        // El nombre del sibling es visible.
+        expect(find.text('Despedida'), findsOneWidget);
+        expect(find.text('Recordatorio'), findsOneWidget);
+      },
+    );
 
     testWidgets('botón Guardar empieza disabled (no dirty)', (tester) async {
       when(() => bloc.state).thenReturn(
@@ -138,34 +155,27 @@ void main() {
       );
     });
 
-    testWidgets('siblings vacía (única flow de la template) muestra empty state inline', (
-      tester,
-    ) async {
-      when(() => bloc.state).thenReturn(
-        FlowDetailLoaded(
-          _flow(),
-          const <fdom.Flow>[],
-          siblingsFailed: false,
-        ),
-      );
+    testWidgets(
+      'siblings vacía (única flow de la template) muestra empty state inline',
+      (tester) async {
+        when(() => bloc.state).thenReturn(
+          FlowDetailLoaded(_flow(), const <fdom.Flow>[], siblingsFailed: false),
+        );
 
-      await tester.pumpWidget(host());
+        await tester.pumpWidget(host());
 
-      expect(
-        find.byKey(const Key('flow_settings.excludes.empty')),
-        findsOneWidget,
-      );
-    });
+        expect(
+          find.byKey(const Key('flow_settings.excludes.empty')),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('siblingsFailed=true muestra aviso de carga fallida', (
       tester,
     ) async {
       when(() => bloc.state).thenReturn(
-        FlowDetailLoaded(
-          _flow(),
-          const <fdom.Flow>[],
-          siblingsFailed: true,
-        ),
+        FlowDetailLoaded(_flow(), const <fdom.Flow>[], siblingsFailed: true),
       );
 
       await tester.pumpWidget(host());
@@ -201,7 +211,9 @@ void main() {
       expect(btn.onPressed, isNotNull);
     });
 
-    testWidgets('tap en chip de sibling toggle de excludesFlows', (tester) async {
+    testWidgets('tap en chip de sibling toggle de excludesFlows', (
+      tester,
+    ) async {
       when(() => bloc.state).thenReturn(
         FlowDetailLoaded(
           _flow(excludesFlows: const <String>[]),
@@ -221,38 +233,42 @@ void main() {
       expect(btn.onPressed, isNotNull);
     });
 
-    testWidgets('save dispatcha UpdateSettingsRequested con excludesFlows ordenado por id', (
-      tester,
-    ) async {
-      when(() => bloc.state).thenReturn(
-        FlowDetailLoaded(
-          _flow(),
-          const <fdom.Flow>[_sib1, _sib2],
-          siblingsFailed: false,
-        ),
-      );
+    testWidgets(
+      'save dispatcha UpdateSettingsRequested con excludesFlows ordenado por id',
+      (tester) async {
+        when(() => bloc.state).thenReturn(
+          FlowDetailLoaded(_flow(), const <fdom.Flow>[
+            _sib1,
+            _sib2,
+          ], siblingsFailed: false),
+        );
 
-      await tester.pumpWidget(host());
+        await tester.pumpWidget(host());
 
-      // Selecciono primero f3 y luego f2: orden de selección distinto del id-sort.
-      await tester.tap(find.byKey(const Key('flow_settings.excludes.chip.f3')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('flow_settings.excludes.chip.f2')));
-      await tester.pump();
+        // Selecciono primero f3 y luego f2: orden de selección distinto del id-sort.
+        await tester.tap(
+          find.byKey(const Key('flow_settings.excludes.chip.f3')),
+        );
+        await tester.pump();
+        await tester.tap(
+          find.byKey(const Key('flow_settings.excludes.chip.f2')),
+        );
+        await tester.pump();
 
-      await tester.tap(find.byKey(const Key('flow_settings.save_button')));
-      await tester.pump();
+        await tester.tap(find.byKey(const Key('flow_settings.save_button')));
+        await tester.pump();
 
-      verify(
-        () => bloc.add(
-          const FlowDetailUpdateSettingsRequested(
-            cooldownMs: 0,
-            usageLimit: 0,
-            excludesFlows: <String>['f2', 'f3'],
+        verify(
+          () => bloc.add(
+            const FlowDetailUpdateSettingsRequested(
+              cooldownMs: 0,
+              usageLimit: 0,
+              excludesFlows: <String>['f2', 'f3'],
+            ),
           ),
-        ),
-      ).called(1);
-    });
+        ).called(1);
+      },
+    );
 
     testWidgets('Saving: botón Guardar disabled + indicador inline visible', (
       tester,
@@ -276,60 +292,62 @@ void main() {
   });
 
   group('FlowSettingsTab — failure copy', () {
-    testWidgets('SaveFailed(Conflict): muestra copy de version stale + botón Recargar', (
-      tester,
-    ) async {
-      when(() => bloc.state).thenReturn(
-        FlowDetailSettingsSaveFailed(
-          _flow(),
-          const <fdom.Flow>[],
-          const FlowsConflictFailure(),
-          siblingsFailed: false,
-        ),
-      );
+    testWidgets(
+      'SaveFailed(Conflict): muestra copy de version stale + botón Recargar',
+      (tester) async {
+        when(() => bloc.state).thenReturn(
+          FlowDetailSettingsSaveFailed(
+            _flow(),
+            const <fdom.Flow>[],
+            const FlowsConflictFailure(),
+            siblingsFailed: false,
+          ),
+        );
 
-      await tester.pumpWidget(host());
+        await tester.pumpWidget(host());
 
-      expect(
-        find.byKey(const Key('flow_settings.error.conflict')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('flow_settings.error.conflict.reload')),
-        findsOneWidget,
-      );
+        expect(
+          find.byKey(const Key('flow_settings.error.conflict')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('flow_settings.error.conflict.reload')),
+          findsOneWidget,
+        );
 
-      await tester.tap(
-        find.byKey(const Key('flow_settings.error.conflict.reload')),
-      );
-      await tester.pump();
+        await tester.tap(
+          find.byKey(const Key('flow_settings.error.conflict.reload')),
+        );
+        await tester.pump();
 
-      verify(() => bloc.add(const FlowDetailLoadRequested())).called(1);
-    });
+        verify(() => bloc.add(const FlowDetailLoadRequested())).called(1);
+      },
+    );
 
-    testWidgets('SaveFailed(InvalidSettings): muestra copy de invalid + sin botón recargar', (
-      tester,
-    ) async {
-      when(() => bloc.state).thenReturn(
-        FlowDetailSettingsSaveFailed(
-          _flow(),
-          const <fdom.Flow>[],
-          const FlowsInvalidSettingsFailure(),
-          siblingsFailed: false,
-        ),
-      );
+    testWidgets(
+      'SaveFailed(InvalidSettings): muestra copy de invalid + sin botón recargar',
+      (tester) async {
+        when(() => bloc.state).thenReturn(
+          FlowDetailSettingsSaveFailed(
+            _flow(),
+            const <fdom.Flow>[],
+            const FlowsInvalidSettingsFailure(),
+            siblingsFailed: false,
+          ),
+        );
 
-      await tester.pumpWidget(host());
+        await tester.pumpWidget(host());
 
-      expect(
-        find.byKey(const Key('flow_settings.error.invalid_settings')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('flow_settings.error.conflict.reload')),
-        findsNothing,
-      );
-    });
+        expect(
+          find.byKey(const Key('flow_settings.error.invalid_settings')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('flow_settings.error.conflict.reload')),
+          findsNothing,
+        );
+      },
+    );
 
     testWidgets('SaveFailed(NotFound): copy de flow no existe', (tester) async {
       when(() => bloc.state).thenReturn(
@@ -349,7 +367,9 @@ void main() {
       );
     });
 
-    testWidgets('SaveFailed(Forbidden): copy de rol insuficiente', (tester) async {
+    testWidgets('SaveFailed(Forbidden): copy de rol insuficiente', (
+      tester,
+    ) async {
       when(() => bloc.state).thenReturn(
         FlowDetailSettingsSaveFailed(
           _flow(),
@@ -405,41 +425,40 @@ void main() {
   });
 
   group('FlowSettingsTab — re-hidratación', () {
-    testWidgets(
-      'cambio de version del flow re-hidrata el form (ValueKey)',
-      (tester) async {
-        // Empieza con cooldown=0, version=1.
-        when(() => bloc.state).thenReturn(
-          FlowDetailLoaded(
-            _flow(version: 1, cooldownMs: 0),
-            const <fdom.Flow>[],
-            siblingsFailed: false,
-          ),
-        );
-        await tester.pumpWidget(host());
+    testWidgets('cambio de version del flow re-hidrata el form (ValueKey)', (
+      tester,
+    ) async {
+      // Empieza con cooldown=0, version=1.
+      when(() => bloc.state).thenReturn(
+        FlowDetailLoaded(
+          _flow(version: 1, cooldownMs: 0),
+          const <fdom.Flow>[],
+          siblingsFailed: false,
+        ),
+      );
+      await tester.pumpWidget(host());
 
-        // El form refleja cooldown=0 (no dirty).
-        final btnInicial = tester.widget<AppButton>(
-          find.byKey(const Key('flow_settings.save_button')),
-        );
-        expect(btnInicial.onPressed, isNull);
+      // El form refleja cooldown=0 (no dirty).
+      final btnInicial = tester.widget<AppButton>(
+        find.byKey(const Key('flow_settings.save_button')),
+      );
+      expect(btnInicial.onPressed, isNull);
 
-        // El bloc emite Loaded con version=2 + cooldown=5000 (post-save).
-        when(() => bloc.state).thenReturn(
-          FlowDetailLoaded(
-            _flow(version: 2, cooldownMs: 5000),
-            const <fdom.Flow>[],
-            siblingsFailed: false,
-          ),
-        );
-        await tester.pumpWidget(host());
+      // El bloc emite Loaded con version=2 + cooldown=5000 (post-save).
+      when(() => bloc.state).thenReturn(
+        FlowDetailLoaded(
+          _flow(version: 2, cooldownMs: 5000),
+          const <fdom.Flow>[],
+          siblingsFailed: false,
+        ),
+      );
+      await tester.pumpWidget(host());
 
-        // El form re-hidrata desde el nuevo snapshot ⇒ no dirty.
-        final btnPostSave = tester.widget<AppButton>(
-          find.byKey(const Key('flow_settings.save_button')),
-        );
-        expect(btnPostSave.onPressed, isNull);
-      },
-    );
+      // El form re-hidrata desde el nuevo snapshot ⇒ no dirty.
+      final btnPostSave = tester.widget<AppButton>(
+        find.byKey(const Key('flow_settings.save_button')),
+      );
+      expect(btnPostSave.onPressed, isNull);
+    });
   });
 }

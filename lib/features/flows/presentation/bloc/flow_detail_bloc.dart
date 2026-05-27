@@ -39,9 +39,7 @@ class FlowDetailBloc extends Bloc<FlowDetailEvent, FlowDetailState> {
     try {
       final flow = await _repo.flowById(_id);
       final (siblings, siblingsFailed) = await _loadSiblings(flow);
-      emit(
-        FlowDetailLoaded(flow, siblings, siblingsFailed: siblingsFailed),
-      );
+      emit(FlowDetailLoaded(flow, siblings, siblingsFailed: siblingsFailed));
     } on FlowsFailure catch (f) {
       emit(FlowDetailFailed(f));
     }
@@ -121,11 +119,7 @@ class FlowDetailBloc extends Bloc<FlowDetailEvent, FlowDetailState> {
       final flow = await _repo.flowById(_id);
       final (newSiblings, newSiblingsFailed) = await _loadSiblings(flow);
       emit(
-        FlowDetailLoaded(
-          flow,
-          newSiblings,
-          siblingsFailed: newSiblingsFailed,
-        ),
+        FlowDetailLoaded(flow, newSiblings, siblingsFailed: newSiblingsFailed),
       );
     } on FlowsFailure catch (f) {
       // El refetch falló: la mutación SÍ persistió pero no tenemos

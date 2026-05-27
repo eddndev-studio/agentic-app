@@ -125,9 +125,7 @@ class _LoadedShell extends StatelessWidget {
                     'Los disparadores se administran desde la plantilla. '
                     'Próximamente verás aquí los que apuntan a este flujo.',
               ),
-              const FlowSettingsTab(
-                key: Key('flow_detail.tab.settings'),
-              ),
+              const FlowSettingsTab(key: Key('flow_detail.tab.settings')),
             ],
           ),
         ),
