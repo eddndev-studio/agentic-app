@@ -69,6 +69,12 @@ abstract interface class TriggersDatasource {
     required TriggerScope scope,
     required bool isActive,
   });
+
+  /// `DELETE /triggers/:triggerId` idempotente. 204 sin body si existía,
+  /// 404 si ya no estaba — ambos se tratan como éxito desde el cliente
+  /// (el operador pidió "que no esté"; el contrato cumple). 403 sigue
+  /// emitiendo [TriggersForbiddenFailure] (RBAC).
+  Future<void> deleteTrigger(String triggerId);
 }
 
 class DioTriggersDatasource implements TriggersDatasource {
@@ -191,6 +197,23 @@ class DioTriggersDatasource implements TriggersDatasource {
       throw const UnknownTriggersFailure();
     } on TypeError {
       throw const UnknownTriggersFailure();
+    }
+  }
+
+  @override
+  Future<void> deleteTrigger(String triggerId) async {
+    try {
+      await _dio.delete<void>('/triggers/$triggerId');
+    } on TriggersFailure {
+      rethrow;
+    } on DioException catch (e) {
+      // 404 = idempotente (el trigger ya no estaba). El operador pidió
+      // "que no esté"; el contrato cumple.
+      if (e.type == DioExceptionType.badResponse &&
+          e.response?.statusCode == 404) {
+        return;
+      }
+      throw _mapMutationDioException(e);
     }
   }
 
