@@ -318,6 +318,26 @@ void main() {
       when(() => bloc.state).thenReturn(const TemplateDetailLoaded(_tpl));
     });
 
+    testWidgets('vive dentro de AppCard con key contractual', (tester) async {
+      await tester.pumpWidget(host());
+
+      final cardFinder = find.byKey(
+        const Key('template_detail.card.variables'),
+      );
+      expect(cardFinder, findsOneWidget);
+      expect(
+        find.descendant(of: cardFinder, matching: find.text('Variables')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: cardFinder,
+          matching: find.byKey(const Key('var_defs.add_button')),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('siempre muestra el título "Variables"', (tester) async {
       await tester.pumpWidget(host());
       expect(find.text('Variables'), findsOneWidget);
