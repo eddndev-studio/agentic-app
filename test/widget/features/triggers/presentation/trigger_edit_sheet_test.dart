@@ -267,4 +267,75 @@ void main() {
       verifyNever(() => triggers.add(any()));
     });
   });
+
+  group('TriggerEditSheet (Edit mode)', () {
+    testWidgets(
+      'TEXT trigger: hidrata keyword/match/scope + línea read-only de flow',
+      (tester) async {
+        await pumpHost(tester, editing: _textTrigger());
+
+        expect(find.text('Editar disparador'), findsOneWidget);
+        expect(
+          find.widgetWithText(TextField, 'menu'),
+          findsOneWidget,
+          reason: 'keyword hidratado',
+        );
+        // Picker de type NO se cambia en edit: deshabilitado.
+        // El flow dropdown NO debe aparecer; en su lugar va el read-only.
+        expect(find.byKey(const Key('trigger_edit.flow_dropdown')), findsNothing);
+        expect(find.byKey(const Key('trigger_edit.flow_readonly')), findsOneWidget);
+        expect(find.text('→ Flujo: Bienvenida'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'LABEL trigger: hidrata labelId + labelAction; sin keyword/match',
+      (tester) async {
+        await pumpHost(tester, editing: _labelTrigger());
+
+        expect(
+          find.widgetWithText(TextField, 'vip'),
+          findsOneWidget,
+          reason: 'labelId hidratado',
+        );
+        expect(find.byKey(const Key('trigger_edit.label_id')), findsOneWidget);
+        expect(find.byKey(const Key('trigger_edit.keyword')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'submit edit dispatcha UpdateRequested con documento completo (PUT semantics)',
+      (tester) async {
+        // Trigger inicial isActive=true, keyword="menu". Cambiamos
+        // keyword y dejamos isActive sin tocar — PUT debe llevar isActive
+        // explícito (no omitido) para no reaplicar el default true.
+        await pumpHost(tester, editing: _textTrigger(isActive: false));
+
+        await tester.enterText(
+          find.byKey(const Key('trigger_edit.keyword')),
+          'hola',
+        );
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('trigger_edit.submit')));
+        await tester.pump();
+
+        verify(
+          () => triggers.add(
+            const TriggersUpdateRequested(
+              triggerId: 't1',
+              triggerType: TriggerType.text,
+              matchType: MatchType.contains,
+              keyword: 'hola',
+              labelId: '',
+              labelAction: null,
+              scope: TriggerScope.both,
+              // Preserva el isActive=false original: si lo omitiéramos el
+              // backend reactivaría el trigger.
+              isActive: false,
+            ),
+          ),
+        ).called(1);
+      },
+    );
+  });
 }
