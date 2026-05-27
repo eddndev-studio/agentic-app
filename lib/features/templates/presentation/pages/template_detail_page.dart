@@ -119,23 +119,6 @@ class _LoadedView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppTokens.sp6),
-          const _SectionTitle('Motor IA'),
-          const SizedBox(height: AppTokens.sp3),
-          _StatGrid(ai: ai),
-          const SizedBox(height: AppTokens.sp6),
-          const _SectionTitle('Prompt del sistema'),
-          const SizedBox(height: AppTokens.sp3),
-          if (ai.systemPrompt.isEmpty)
-            Text(
-              'Sin prompt definido',
-              style: textTheme.bodyMedium?.copyWith(
-                fontStyle: FontStyle.italic,
-                color: AppTokens.text2,
-              ),
-            )
-          else
-            SelectableText(ai.systemPrompt, style: textTheme.bodyMedium),
-          const SizedBox(height: AppTokens.sp6),
           AppCard(
             key: const Key('template_detail.card.flows'),
             child: Column(
@@ -168,6 +151,34 @@ class _LoadedView extends StatelessWidget {
                 _SectionTitle('Variables'),
                 SizedBox(height: AppTokens.sp3),
                 _VarDefsSection(),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTokens.sp6),
+          AppCard(
+            key: const Key('template_detail.card.ai_config'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const _SectionTitle('Configuración IA'),
+                const SizedBox(height: AppTokens.sp3),
+                _StatGrid(ai: ai),
+                const SizedBox(height: AppTokens.sp5),
+                const _SectionTitle('Prompt del sistema'),
+                const SizedBox(height: AppTokens.sp2),
+                if (ai.systemPrompt.isEmpty)
+                  Text(
+                    'Sin prompt definido',
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: AppTokens.text2,
+                    ),
+                  )
+                else
+                  SelectableText(
+                    ai.systemPrompt,
+                    style: textTheme.bodyMedium,
+                  ),
               ],
             ),
           ),
@@ -269,8 +280,15 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return AppCard(
-      padding: AppTokens.sp4,
+    // Tile plano (no AppCard) — vive dentro de la AppCard outer de
+    // Configuración IA, así que se diferencia visualmente con surface3
+    // sobre el surface2 de la card padre, sin doble shell.
+    return Container(
+      padding: const EdgeInsets.all(AppTokens.sp4),
+      decoration: BoxDecoration(
+        color: AppTokens.surface3,
+        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
