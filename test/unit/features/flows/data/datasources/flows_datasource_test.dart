@@ -722,4 +722,177 @@ void main() {
       );
     });
   });
+
+  group('DioFlowsDatasource.patchStep happy path', () {
+    test(
+      '200 con body devuelve Step mapeado; body only-changed sin campos null',
+      () async {
+        when(
+          () => dio.patch<Map<String, dynamic>>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response<Map<String, dynamic>>(
+            requestOptions: RequestOptions(path: '/steps/s1'),
+            statusCode: 200,
+            data: stepJson(id: 's1', content: 'Nuevo'),
+          ),
+        );
+
+        final out = await ds.patchStep(stepId: 's1', content: 'Nuevo');
+
+        expect(out.id, 's1');
+        expect(out.content, 'Nuevo');
+
+        final captured = verify(
+          () => dio.patch<Map<String, dynamic>>(
+            captureAny(),
+            data: captureAny(named: 'data'),
+            options: any(named: 'options'),
+          ),
+        ).captured;
+        expect(captured[0], '/steps/s1');
+        // El body sólo trae los campos suministrados; el resto NO va con
+        // valor null (omitir es preservar para el backend).
+        expect(captured[1], <String, dynamic>{'content': 'Nuevo'});
+      },
+    );
+
+    test('body con todos los campos opcionales viaja completo', () async {
+      when(
+        () => dio.patch<Map<String, dynamic>>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer(
+        (_) async => Response<Map<String, dynamic>>(
+          requestOptions: RequestOptions(path: '/steps/s1'),
+          statusCode: 200,
+          data: stepJson(id: 's1'),
+        ),
+      );
+
+      await ds.patchStep(
+        stepId: 's1',
+        content: 'X',
+        delayMs: 2000,
+        jitterPct: 20,
+        aiOnly: true,
+      );
+
+      final captured = verify(
+        () => dio.patch<Map<String, dynamic>>(
+          captureAny(),
+          data: captureAny(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).captured;
+      expect(captured[1], <String, dynamic>{
+        'content': 'X',
+        'delayMs': 2000,
+        'jitterPct': 20,
+        'aiOnly': true,
+      });
+    });
+  });
+
+  group('DioFlowsDatasource.patchStep failure mapping', () {
+    DioException patchBadResponse(int status) => DioException(
+      requestOptions: RequestOptions(path: '/steps/s1'),
+      response: Response<dynamic>(
+        requestOptions: RequestOptions(path: '/steps/s1'),
+        statusCode: status,
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    test('422 → FlowsInvalidStepFailure', () async {
+      when(
+        () => dio.patch<Map<String, dynamic>>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenThrow(patchBadResponse(422));
+
+      await expectLater(
+        () => ds.patchStep(stepId: 's1', content: ''),
+        throwsA(isA<FlowsInvalidStepFailure>()),
+      );
+    });
+
+    test('404 → FlowsStepNotFoundFailure (step inexistente)', () async {
+      when(
+        () => dio.patch<Map<String, dynamic>>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenThrow(patchBadResponse(404));
+
+      await expectLater(
+        () => ds.patchStep(stepId: 's1', content: 'X'),
+        throwsA(isA<FlowsStepNotFoundFailure>()),
+      );
+    });
+
+    test('403 → FlowsForbiddenFailure', () async {
+      when(
+        () => dio.patch<Map<String, dynamic>>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenThrow(patchBadResponse(403));
+
+      await expectLater(
+        () => ds.patchStep(stepId: 's1', content: 'X'),
+        throwsA(isA<FlowsForbiddenFailure>()),
+      );
+    });
+
+    test('connectionError → FlowsNetworkFailure', () async {
+      when(
+        () => dio.patch<Map<String, dynamic>>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/steps/s1'),
+          type: DioExceptionType.connectionError,
+        ),
+      );
+
+      await expectLater(
+        () => ds.patchStep(stepId: 's1', content: 'X'),
+        throwsA(isA<FlowsNetworkFailure>()),
+      );
+    });
+
+    test('body null en 200 → UnknownFlowsFailure', () async {
+      when(
+        () => dio.patch<Map<String, dynamic>>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer(
+        (_) async => Response<Map<String, dynamic>>(
+          requestOptions: RequestOptions(path: '/steps/s1'),
+          statusCode: 200,
+          data: null,
+        ),
+      );
+
+      await expectLater(
+        () => ds.patchStep(stepId: 's1', content: 'X'),
+        throwsA(isA<UnknownFlowsFailure>()),
+      );
+    });
+  });
 }

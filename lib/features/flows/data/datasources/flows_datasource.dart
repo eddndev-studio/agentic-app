@@ -60,6 +60,24 @@ abstract interface class FlowsDatasource {
     required int jitterPct,
     required bool aiOnly,
   });
+
+  /// `PATCH /steps/:stepId` con body **only-changed**: cualquier campo
+  /// `null` aquí se OMITE del JSON (el backend trata omitidos como
+  /// "preservar"). Mandar `{"content": null}` sería distinto de omitir
+  /// `content` — para mantener simetría con el contrato Go (pointers +
+  /// omitempty), el datasource no envía null.
+  ///
+  /// 200 con el step resultante completo. 422
+  /// → `FlowsInvalidStepFailure`. 404 → `FlowsStepNotFoundFailure`
+  /// (distinto del NotFound del flow padre: aquí el step en sí no
+  /// existe, típicamente por concurrencia con otro operador).
+  Future<fdom.Step> patchStep({
+    required String stepId,
+    String? content,
+    int? delayMs,
+    int? jitterPct,
+    bool? aiOnly,
+  });
 }
 
 class DioFlowsDatasource implements FlowsDatasource {
@@ -212,16 +230,61 @@ class DioFlowsDatasource implements FlowsDatasource {
     return _mapDioException(e);
   }
 
-  /// Traduce DioException de una mutación de step (create/update/delete
-  /// del step). 422 ⇒ `FlowsInvalidStepFailure` — distinto del cubo de
-  /// flow para que la UI elija copy específico del paso. 404 sigue
-  /// siendo NotFound del flow padre.
+  /// Traduce DioException de mutaciones que viven directo sobre el
+  /// recurso step (PATCH/DELETE /steps/:id). 422 ⇒ InvalidStepFailure y
+  /// 404 ⇒ StepNotFoundFailure (distinto del NotFound del flow padre).
+  FlowsFailure _mapStepRouteDioException(DioException e) {
+    if (e.type == DioExceptionType.badResponse) {
+      final status = e.response?.statusCode;
+      if (status == 422) return const FlowsInvalidStepFailure();
+      if (status == 404) return const FlowsStepNotFoundFailure();
+    }
+    return _mapDioException(e);
+  }
+
+  /// Traduce DioException del POST /flows/:id/steps. 422 ⇒
+  /// InvalidStepFailure; 404 sigue siendo el NotFound del flow padre
+  /// (que es lo que el path apunta).
   FlowsFailure _mapStepMutationDioException(DioException e) {
     if (e.type == DioExceptionType.badResponse &&
         e.response?.statusCode == 422) {
       return const FlowsInvalidStepFailure();
     }
     return _mapDioException(e);
+  }
+
+  @override
+  Future<fdom.Step> patchStep({
+    required String stepId,
+    String? content,
+    int? delayMs,
+    int? jitterPct,
+    bool? aiOnly,
+  }) async {
+    final body = <String, dynamic>{};
+    if (content != null) body['content'] = content;
+    if (delayMs != null) body['delayMs'] = delayMs;
+    if (jitterPct != null) body['jitterPct'] = jitterPct;
+    if (aiOnly != null) body['aiOnly'] = aiOnly;
+    try {
+      final res = await _dio.patch<Map<String, dynamic>>(
+        '/steps/$stepId',
+        data: body,
+      );
+      final rb = res.data;
+      if (rb == null) {
+        throw const UnknownFlowsFailure();
+      }
+      return StepsMapper.stepRespToEntity(StepResp.fromJson(rb));
+    } on FlowsFailure {
+      rethrow;
+    } on DioException catch (e) {
+      throw _mapStepRouteDioException(e);
+    } on FormatException {
+      throw const UnknownFlowsFailure();
+    } on TypeError {
+      throw const UnknownFlowsFailure();
+    }
   }
 
   /// Traduce DioException a la jerarquía sellada de FlowsFailure.

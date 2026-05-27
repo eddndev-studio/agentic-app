@@ -37,4 +37,16 @@ abstract interface class FlowsRepository {
     required int jitterPct,
     required bool aiOnly,
   });
+
+  /// Edita un Step (partial update). Campos `null` se omiten — el
+  /// backend preserva su valor actual. 422 → `FlowsInvalidStepFailure`;
+  /// 404 → `FlowsStepNotFoundFailure` (el step ya no existe — el
+  /// listado en pantalla está obsoleto).
+  Future<fdom.Step> patchStep({
+    required String stepId,
+    String? content,
+    int? delayMs,
+    int? jitterPct,
+    bool? aiOnly,
+  });
 }

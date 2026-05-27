@@ -44,4 +44,19 @@ class FlowsRepositoryImpl implements FlowsRepository {
     jitterPct: jitterPct,
     aiOnly: aiOnly,
   );
+
+  @override
+  Future<fdom.Step> patchStep({
+    required String stepId,
+    String? content,
+    int? delayMs,
+    int? jitterPct,
+    bool? aiOnly,
+  }) => _ds.patchStep(
+    stepId: stepId,
+    content: content,
+    delayMs: delayMs,
+    jitterPct: jitterPct,
+    aiOnly: aiOnly,
+  );
 }

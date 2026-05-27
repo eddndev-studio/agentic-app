@@ -67,3 +67,12 @@ final class FlowsInvalidCreateFailure extends FlowsFailure {
 final class FlowsInvalidStepFailure extends FlowsFailure {
   const FlowsInvalidStepFailure();
 }
+
+/// 404 contra mutaciones de step (`PATCH /steps/:id`). Distinto de
+/// `FlowsNotFoundFailure` (que es del flow padre) — aquí el flow puede
+/// existir pero el step en particular no, típicamente porque otro
+/// operador lo borró entre el listado y el patch. Reintentar el mismo
+/// id falla idéntico; la UI debe forzar refresh del listado.
+final class FlowsStepNotFoundFailure extends FlowsFailure {
+  const FlowsStepNotFoundFailure();
+}

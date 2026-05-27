@@ -130,6 +130,7 @@ class _FailedView extends StatelessWidget {
     FlowsNotFoundFailure() ||
     FlowsServerFailure() ||
     FlowsInvalidStepFailure() ||
+    FlowsStepNotFoundFailure() ||
     UnknownFlowsFailure() => (
       'flow_create.error.generic',
       'No pudimos crear el flujo. Inténtalo de nuevo.',

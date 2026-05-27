@@ -229,4 +229,77 @@ void main() {
       );
     });
   });
+
+  group('FlowsRepositoryImpl.patchStep', () {
+    const patched = fdom.Step(
+      id: 's1',
+      flowId: 'f1',
+      type: fdom.StepType.text,
+      order: 0,
+      content: 'Edited',
+      mediaRef: '',
+      metadataJson: '{}',
+      delayMs: 2000,
+      jitterPct: 15,
+      aiOnly: true,
+    );
+
+    test('delega 1:1 con campos opcionales', () async {
+      when(
+        () => ds.patchStep(
+          stepId: 's1',
+          content: 'Edited',
+          delayMs: 2000,
+          jitterPct: 15,
+          aiOnly: true,
+        ),
+      ).thenAnswer((_) async => patched);
+
+      final out = await repo.patchStep(
+        stepId: 's1',
+        content: 'Edited',
+        delayMs: 2000,
+        jitterPct: 15,
+        aiOnly: true,
+      );
+
+      expect(out.id, 's1');
+      verify(
+        () => ds.patchStep(
+          stepId: 's1',
+          content: 'Edited',
+          delayMs: 2000,
+          jitterPct: 15,
+          aiOnly: true,
+        ),
+      ).called(1);
+    });
+
+    test('omite parámetros null al delegar', () async {
+      when(
+        () => ds.patchStep(stepId: 's1', content: 'Solo content'),
+      ).thenAnswer((_) async => patched);
+
+      await repo.patchStep(stepId: 's1', content: 'Solo content');
+
+      verify(() => ds.patchStep(stepId: 's1', content: 'Solo content')).called(1);
+    });
+
+    test('relanza FlowsStepNotFoundFailure', () async {
+      when(
+        () => ds.patchStep(
+          stepId: any(named: 'stepId'),
+          content: any(named: 'content'),
+          delayMs: any(named: 'delayMs'),
+          jitterPct: any(named: 'jitterPct'),
+          aiOnly: any(named: 'aiOnly'),
+        ),
+      ).thenThrow(const FlowsStepNotFoundFailure());
+
+      await expectLater(
+        () => repo.patchStep(stepId: 'gone', content: 'X'),
+        throwsA(isA<FlowsStepNotFoundFailure>()),
+      );
+    });
+  });
 }

@@ -270,6 +270,10 @@ class _FailureCopy extends StatelessWidget {
       'step_edit.error.network',
       'Sin conexión con el servidor. Revisa tu red y reintenta.',
     ),
+    FlowsStepNotFoundFailure() => (
+      'step_edit.error.step_not_found',
+      'Este paso ya no existe. Cierra y refresca la lista.',
+    ),
     FlowsNotFoundFailure() ||
     FlowsServerFailure() ||
     FlowsInvalidCreateFailure() ||
