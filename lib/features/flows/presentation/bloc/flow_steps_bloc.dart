@@ -25,6 +25,7 @@ class FlowStepsBloc extends Bloc<FlowStepsEvent, FlowStepsState> {
       super(const FlowStepsLoading()) {
     on<FlowStepsLoadRequested>(_onLoad);
     on<FlowStepsAddRequested>(_onAdd);
+    on<FlowStepsUpdateRequested>(_onUpdate);
   }
 
   final FlowsRepository _repo;
@@ -56,6 +57,21 @@ class FlowStepsBloc extends Bloc<FlowStepsEvent, FlowStepsState> {
         order: snapshot.length,
         content: event.content,
         mediaRef: '',
+        delayMs: event.delayMs,
+        jitterPct: event.jitterPct,
+        aiOnly: event.aiOnly,
+      );
+    });
+  }
+
+  Future<void> _onUpdate(
+    FlowStepsUpdateRequested event,
+    Emitter<FlowStepsState> emit,
+  ) async {
+    await _runMutation(emit, (_) async {
+      await _repo.patchStep(
+        stepId: event.stepId,
+        content: event.content,
         delayMs: event.delayMs,
         jitterPct: event.jitterPct,
         aiOnly: event.aiOnly,
@@ -143,6 +159,39 @@ class FlowStepsAddRequested extends FlowStepsEvent {
 
   @override
   int get hashCode => Object.hash(content, delayMs, jitterPct, aiOnly);
+}
+
+/// Pide editar un step (partial update). Cualquier campo `null` se omite
+/// del PATCH — preservar = omitir. La UI computa el diff contra el step
+/// original antes de despachar; si nada cambió, no debería despachar el
+/// evento. El bloc no re-valida no-op (asume que la UI hizo su trabajo).
+class FlowStepsUpdateRequested extends FlowStepsEvent {
+  const FlowStepsUpdateRequested({
+    required this.stepId,
+    this.content,
+    this.delayMs,
+    this.jitterPct,
+    this.aiOnly,
+  });
+
+  final String stepId;
+  final String? content;
+  final int? delayMs;
+  final int? jitterPct;
+  final bool? aiOnly;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FlowStepsUpdateRequested &&
+      other.stepId == stepId &&
+      other.content == content &&
+      other.delayMs == delayMs &&
+      other.jitterPct == jitterPct &&
+      other.aiOnly == aiOnly;
+
+  @override
+  int get hashCode =>
+      Object.hash(stepId, content, delayMs, jitterPct, aiOnly);
 }
 
 // States --------------------------------------------------------------------

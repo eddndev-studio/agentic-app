@@ -33,12 +33,25 @@ void main() {
     ).thenReturn(const FlowStepsLoaded(<fdom.Step>[]));
   });
 
-  Widget host() => MaterialApp(
+  Widget host({fdom.Step? editing}) => MaterialApp(
     theme: AppDesignTheme.dark(),
     home: BlocProvider<FlowStepsBloc>.value(
       value: bloc,
-      child: const Scaffold(body: SafeArea(child: StepEditSheet())),
+      child: Scaffold(body: SafeArea(child: StepEditSheet(editing: editing))),
     ),
+  );
+
+  const editingStep = fdom.Step(
+    id: 's1',
+    flowId: 'f1',
+    type: fdom.StepType.text,
+    order: 0,
+    content: 'Hola original',
+    mediaRef: '',
+    metadataJson: '{}',
+    delayMs: 1500,
+    jitterPct: 10,
+    aiOnly: true,
   );
 
   group('StepEditSheet (Add mode)', () {
@@ -155,5 +168,82 @@ void main() {
       },
     );
 
+  });
+
+  group('StepEditSheet (Edit mode)', () {
+    setUpAll(() {
+      registerFallbackValue(
+        const FlowStepsUpdateRequested(stepId: 's', content: 'x'),
+      );
+    });
+
+    testWidgets(
+      'renderiza título "Editar paso" y prefilling del content',
+      (tester) async {
+        await tester.pumpWidget(host(editing: editingStep));
+
+        expect(find.text('Editar paso'), findsOneWidget);
+        // El TextField está prefilled con el content del editing.
+        final tf = tester.widget<TextField>(
+          find.descendant(
+            of: find.byKey(const Key('step_edit.content')),
+            matching: find.byType(TextField),
+          ),
+        );
+        expect(tf.controller?.text, 'Hola original');
+      },
+    );
+
+    testWidgets(
+      'edit con cambios dispatcha UpdateRequested con only-changed',
+      (tester) async {
+        await tester.pumpWidget(host(editing: editingStep));
+        // Cambia solo el content; los sliders/switch quedan iguales.
+        await tester.enterText(
+          find.byKey(const Key('step_edit.content')),
+          'Hola edited',
+        );
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('step_edit.submit')));
+        await tester.pump();
+
+        verify(
+          () => bloc.add(
+            const FlowStepsUpdateRequested(
+              stepId: 's1',
+              content: 'Hola edited',
+            ),
+          ),
+        ).called(1);
+      },
+    );
+
+    testWidgets(
+      'edit sin cambios es no-op (no dispatcha UpdateRequested)',
+      (tester) async {
+        await tester.pumpWidget(host(editing: editingStep));
+        // Sin tocar nada — sólo tap submit.
+        await tester.tap(find.byKey(const Key('step_edit.submit')));
+        await tester.pump();
+
+        verifyNever(() => bloc.add(any()));
+      },
+    );
+
+    testWidgets(
+      'edit con content vacío es no-op (gate del trim().isEmpty)',
+      (tester) async {
+        await tester.pumpWidget(host(editing: editingStep));
+        await tester.enterText(
+          find.byKey(const Key('step_edit.content')),
+          '   ',
+        );
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('step_edit.submit')));
+        await tester.pump();
+
+        verifyNever(() => bloc.add(any()));
+      },
+    );
   });
 }

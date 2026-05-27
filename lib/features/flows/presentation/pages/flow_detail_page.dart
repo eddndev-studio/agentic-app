@@ -165,28 +165,12 @@ class _StepsTab extends StatelessWidget {
               key: const Key('flow_detail.steps.add_button'),
               label: 'Nuevo paso',
               icon: Icons.add,
-              onPressed: () => _openStepSheet(context),
+              onPressed: () => _openStepSheet(context, null),
             ),
           ),
           const SizedBox(height: AppTokens.sp3),
           const _StepsList(),
         ],
-      ),
-    );
-  }
-
-  /// Abre el sheet de creación de step pasando el `FlowStepsBloc` del
-  /// scope al subtree del modal — `showModalBottomSheet` crea un
-  /// Navigator hijo que no hereda los providers, así que hay que
-  /// re-proveerlos vía `BlocProvider.value`.
-  void _openStepSheet(BuildContext context) {
-    final bloc = context.read<FlowStepsBloc>();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetCtx) => BlocProvider<FlowStepsBloc>.value(
-        value: bloc,
-        child: const StepEditSheet(),
       ),
     );
   }
@@ -392,37 +376,60 @@ class _StepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return AppCard(
+    return InkWell(
       key: Key('flow_detail.step_card.${step.id}'),
-      padding: AppTokens.sp4,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Text(
-                '${step.order + 1}.',
-                style: textTheme.titleMedium?.copyWith(color: AppTokens.text2),
-              ),
-              const SizedBox(width: AppTokens.sp2),
-              Text(_humanLabelFor(step.type), style: textTheme.titleMedium),
-            ],
-          ),
-          const SizedBox(height: AppTokens.sp2),
-          _StepBody(step: step, textTheme: textTheme),
-          const SizedBox(height: AppTokens.sp3),
-          Wrap(
-            spacing: AppTokens.sp2,
-            runSpacing: AppTokens.sp2,
-            children: <Widget>[
-              AppPill.neutral(label: _delayLabel(step)),
-              if (step.aiOnly) const AppPill.primary(label: 'Solo IA'),
-            ],
-          ),
-        ],
+      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+      // Tap abre el sheet en modo edit pre-fillado con este step.
+      onTap: () => _openStepSheet(context, step),
+      child: AppCard(
+        padding: AppTokens.sp4,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Text(
+                  '${step.order + 1}.',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: AppTokens.text2,
+                  ),
+                ),
+                const SizedBox(width: AppTokens.sp2),
+                Text(_humanLabelFor(step.type), style: textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: AppTokens.sp2),
+            _StepBody(step: step, textTheme: textTheme),
+            const SizedBox(height: AppTokens.sp3),
+            Wrap(
+              spacing: AppTokens.sp2,
+              runSpacing: AppTokens.sp2,
+              children: <Widget>[
+                AppPill.neutral(label: _delayLabel(step)),
+                if (step.aiOnly) const AppPill.primary(label: 'Solo IA'),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Abre el sheet de edición pasando el FlowStepsBloc del scope y, si
+/// `step` viene, el step a editar. La función vive a nivel de archivo
+/// porque la usan tanto _StepsTab (botón "Nuevo paso") como _StepCard
+/// (tap del card).
+void _openStepSheet(BuildContext context, sdom.Step? step) {
+  final bloc = context.read<FlowStepsBloc>();
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (sheetCtx) => BlocProvider<FlowStepsBloc>.value(
+      value: bloc,
+      child: StepEditSheet(editing: step),
+    ),
+  );
 }
 
 /// Cuerpo del step según tipo. TEXT muestra content; multimedia muestra

@@ -6,12 +6,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/design/tokens.dart';
 import '../../../../core/design/widgets/app_button.dart';
 import '../../../../core/design/widgets/app_text_field.dart';
+import '../../domain/entities/step.dart' as fdom;
 import '../../domain/failures/flows_failure.dart';
 import '../bloc/flow_steps_bloc.dart';
 
-/// Modal sheet de creación de un step TEXT (S11 F5a). Cuenta con tres
-/// controles: `content` (TextField multiline), `delayMs` y `jitterPct`
-/// (sliders), y `aiOnly` (switch).
+/// Modal sheet de creación/edición de un step TEXT (S11 F5a). Cuenta
+/// con tres controles: `content` (TextField multiline), `delayMs` y
+/// `jitterPct` (sliders), y `aiOnly` (switch).
+///
+/// `editing == null` ⇒ modo creación (POST). `editing != null` ⇒ modo
+/// edición: fields pre-fillados con los valores actuales, submit
+/// dispatcha UpdateRequested only-changed (campos sin cambio no viajan
+/// al backend) y si nada cambió el submit es no-op.
 ///
 /// Rangos espejan al validador del backend: `delayMs` 0..5 min,
 /// `jitterPct` 0..100%. Cualquier ajuste de límite debe hacerse primero
@@ -25,7 +31,12 @@ import '../bloc/flow_steps_bloc.dart';
 /// - MutationFailed ⇒ sigue montado; copy específico por cubo permite
 ///   al operador corregir y reintentar.
 class StepEditSheet extends StatefulWidget {
-  const StepEditSheet({super.key});
+  const StepEditSheet({super.key, this.editing});
+
+  /// `null` ⇒ modo creación. No-null ⇒ modo edición; el sheet se
+  /// pre-llena con los valores actuales del step y el submit hace
+  /// only-changed contra el original.
+  final fdom.Step? editing;
 
   @override
   State<StepEditSheet> createState() => _StepEditSheetState();
@@ -36,15 +47,19 @@ class _StepEditSheetState extends State<StepEditSheet> {
   static const int _maxJitterPct = 100;
 
   late final TextEditingController _contentCtrl;
-  int _delayMs = 0;
-  int _jitterPct = 0;
-  bool _aiOnly = false;
+  late int _delayMs;
+  late int _jitterPct;
+  late bool _aiOnly;
   bool _didSubmit = false;
 
   @override
   void initState() {
     super.initState();
-    _contentCtrl = TextEditingController();
+    final ed = widget.editing;
+    _contentCtrl = TextEditingController(text: ed?.content ?? '');
+    _delayMs = ed?.delayMs ?? 0;
+    _jitterPct = ed?.jitterPct ?? 0;
+    _aiOnly = ed?.aiOnly ?? false;
     _contentCtrl.addListener(_onContentChanged);
   }
 
@@ -60,13 +75,41 @@ class _StepEditSheetState extends State<StepEditSheet> {
   void _submit() {
     final content = _contentCtrl.text.trim();
     if (content.isEmpty) return;
+    final ed = widget.editing;
+    if (ed == null) {
+      _didSubmit = true;
+      context.read<FlowStepsBloc>().add(
+        FlowStepsAddRequested(
+          content: content,
+          delayMs: _delayMs,
+          jitterPct: _jitterPct,
+          aiOnly: _aiOnly,
+        ),
+      );
+      return;
+    }
+
+    // Modo edit: only-changed. Diff contra el editing original; si
+    // nada cambió, no-op (la UI evita el round-trip).
+    final newContent = content != ed.content ? content : null;
+    final newDelay = _delayMs != ed.delayMs ? _delayMs : null;
+    final newJitter = _jitterPct != ed.jitterPct ? _jitterPct : null;
+    final newAiOnly = _aiOnly != ed.aiOnly ? _aiOnly : null;
+    final isNoOp =
+        newContent == null &&
+        newDelay == null &&
+        newJitter == null &&
+        newAiOnly == null;
+    if (isNoOp) return;
+
     _didSubmit = true;
     context.read<FlowStepsBloc>().add(
-      FlowStepsAddRequested(
-        content: content,
-        delayMs: _delayMs,
-        jitterPct: _jitterPct,
-        aiOnly: _aiOnly,
+      FlowStepsUpdateRequested(
+        stepId: ed.id,
+        content: newContent,
+        delayMs: newDelay,
+        jitterPct: newJitter,
+        aiOnly: newAiOnly,
       ),
     );
   }
@@ -102,7 +145,10 @@ class _StepEditSheetState extends State<StepEditSheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Nuevo paso', style: textTheme.titleLarge),
+                  Text(
+                    widget.editing == null ? 'Nuevo paso' : 'Editar paso',
+                    style: textTheme.titleLarge,
+                  ),
                   const SizedBox(height: AppTokens.sp4),
                   AppTextField(
                     key: const Key('step_edit.content'),

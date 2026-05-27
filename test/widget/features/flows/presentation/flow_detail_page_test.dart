@@ -367,4 +367,41 @@ void main() {
       expect(find.byKey(const Key('step_edit.delay_slider')), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'Tap en StepCard abre el StepEditSheet en modo Edit (prefilled)',
+    (tester) async {
+      when(() => detailBloc.state).thenReturn(const FlowDetailLoaded(_flow));
+      when(() => stepsBloc.state).thenReturn(
+        const FlowStepsLoaded(<fdom.Step>[
+          fdom.Step(
+            id: 's1',
+            flowId: 'f1',
+            type: fdom.StepType.text,
+            order: 0,
+            content: 'Hola original',
+            mediaRef: '',
+            metadataJson: '{}',
+            delayMs: 0,
+            jitterPct: 0,
+            aiOnly: false,
+          ),
+        ]),
+      );
+
+      await tester.pumpWidget(host());
+      await tester.tap(find.byKey(const Key('flow_detail.step_card.s1')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Editar paso'), findsOneWidget);
+      // Prefilling: el TextField del content tiene el valor del step.
+      final tf = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('step_edit.content')),
+          matching: find.byType(TextField),
+        ),
+      );
+      expect(tf.controller?.text, 'Hola original');
+    },
+  );
 }

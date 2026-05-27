@@ -398,4 +398,148 @@ void main() {
       expect(f1.hashCode, f2.hashCode);
     });
   });
+
+  group('FlowStepsBloc.UpdateRequested', () {
+    const patched = fdom.Step(
+      id: 's1',
+      flowId: 'f1',
+      type: fdom.StepType.text,
+      order: 0,
+      content: 'Hola edited',
+      mediaRef: '',
+      metadataJson: '{}',
+      delayMs: 0,
+      jitterPct: 0,
+      aiOnly: false,
+    );
+    const afterPatch = <fdom.Step>[
+      patched,
+      fdom.Step(
+        id: 's2',
+        flowId: 'f1',
+        type: fdom.StepType.image,
+        order: 1,
+        content: '',
+        mediaRef: 'https://example.com/x.png',
+        metadataJson: '{}',
+        delayMs: 500,
+        jitterPct: 5,
+        aiOnly: false,
+      ),
+    ];
+
+    blocTest<FlowStepsBloc, FlowStepsState>(
+      'UpdateRequested ok desde Loaded → Mutating + Loading + Loaded(refrescado)',
+      build: () {
+        when(
+          () => repo.patchStep(stepId: 's1', content: 'Hola edited'),
+        ).thenAnswer((_) async => patched);
+        when(() => repo.listSteps('f1')).thenAnswer((_) async => afterPatch);
+        return FlowStepsBloc(repo: repo, flowId: 'f1');
+      },
+      seed: () => const FlowStepsLoaded(_steps),
+      act: (bloc) => bloc.add(
+        const FlowStepsUpdateRequested(
+          stepId: 's1',
+          content: 'Hola edited',
+        ),
+      ),
+      expect: () => const <FlowStepsState>[
+        FlowStepsMutating(_steps),
+        FlowStepsLoading(),
+        FlowStepsLoaded(afterPatch),
+      ],
+      verify: (_) {
+        verify(
+          () => repo.patchStep(stepId: 's1', content: 'Hola edited'),
+        ).called(1);
+      },
+    );
+
+    blocTest<FlowStepsBloc, FlowStepsState>(
+      'UpdateRequested propaga todos los campos opcionales',
+      build: () {
+        when(
+          () => repo.patchStep(
+            stepId: 's1',
+            content: 'X',
+            delayMs: 2000,
+            jitterPct: 10,
+            aiOnly: true,
+          ),
+        ).thenAnswer((_) async => patched);
+        when(() => repo.listSteps('f1')).thenAnswer((_) async => afterPatch);
+        return FlowStepsBloc(repo: repo, flowId: 'f1');
+      },
+      seed: () => const FlowStepsLoaded(_steps),
+      act: (bloc) => bloc.add(
+        const FlowStepsUpdateRequested(
+          stepId: 's1',
+          content: 'X',
+          delayMs: 2000,
+          jitterPct: 10,
+          aiOnly: true,
+        ),
+      ),
+      verify: (_) {
+        verify(
+          () => repo.patchStep(
+            stepId: 's1',
+            content: 'X',
+            delayMs: 2000,
+            jitterPct: 10,
+            aiOnly: true,
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<FlowStepsBloc, FlowStepsState>(
+      'UpdateRequested falla → MutationFailed(steps intactos)',
+      build: () {
+        when(
+          () => repo.patchStep(
+            stepId: any(named: 'stepId'),
+            content: any(named: 'content'),
+            delayMs: any(named: 'delayMs'),
+            jitterPct: any(named: 'jitterPct'),
+            aiOnly: any(named: 'aiOnly'),
+          ),
+        ).thenThrow(const FlowsStepNotFoundFailure());
+        return FlowStepsBloc(repo: repo, flowId: 'f1');
+      },
+      seed: () => const FlowStepsLoaded(_steps),
+      act: (bloc) => bloc.add(
+        const FlowStepsUpdateRequested(
+          stepId: 'gone',
+          content: 'X',
+        ),
+      ),
+      expect: () => const <FlowStepsState>[
+        FlowStepsMutating(_steps),
+        FlowStepsMutationFailed(_steps, FlowsStepNotFoundFailure()),
+      ],
+    );
+
+    blocTest<FlowStepsBloc, FlowStepsState>(
+      'UpdateRequested desde Loading → no-op',
+      build: () => FlowStepsBloc(repo: repo, flowId: 'f1'),
+      seed: () => const FlowStepsLoading(),
+      act: (bloc) => bloc.add(
+        const FlowStepsUpdateRequested(stepId: 's1', content: 'X'),
+      ),
+      expect: () => const <FlowStepsState>[],
+      verify: (_) {
+        verifyNever(
+          () => repo.patchStep(
+            stepId: any(named: 'stepId'),
+            content: any(named: 'content'),
+            delayMs: any(named: 'delayMs'),
+            jitterPct: any(named: 'jitterPct'),
+            aiOnly: any(named: 'aiOnly'),
+          ),
+        );
+      },
+    );
+  });
 }
