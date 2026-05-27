@@ -170,11 +170,12 @@ void main() {
         );
         await tester.tap(find.byKey(const Key('ct_form.on_match_dropdown')));
         await tester.pumpAndSettle();
+        // "Paso #3" en la UI = order=2 (display es order+1).
         await tester.tap(find.text('Paso #3').last);
         await tester.pumpAndSettle();
 
         final md = ConditionalTimeMetadata.fromJsonString(cap.last!);
-        expect(md.onMatchOrder, 3);
+        expect(md.onMatchOrder, 2);
       },
     );
 
