@@ -360,7 +360,10 @@ class _StepEditSheetState extends State<StepEditSheet> {
                   ),
                   if (failure != null) ...<Widget>[
                     const SizedBox(height: AppTokens.sp4),
-                    _FailureCopy(failure: failure),
+                    _FailureCopy(
+                      failure: failure,
+                      isConditionalTime: _isConditionalTime,
+                    ),
                   ],
                   const SizedBox(height: AppTokens.sp6),
                   AppButton.filled(
@@ -439,13 +442,14 @@ class _SliderField extends StatelessWidget {
 }
 
 class _FailureCopy extends StatelessWidget {
-  const _FailureCopy({required this.failure});
+  const _FailureCopy({required this.failure, required this.isConditionalTime});
 
   final FlowsFailure failure;
+  final bool isConditionalTime;
 
   @override
   Widget build(BuildContext context) {
-    final (key, copy) = _resolve(failure);
+    final (key, copy) = _resolve(failure, isConditionalTime);
     return Text(
       copy,
       key: Key(key),
@@ -453,11 +457,17 @@ class _FailureCopy extends StatelessWidget {
     );
   }
 
-  static (String key, String copy) _resolve(FlowsFailure f) => switch (f) {
-    FlowsInvalidStepFailure() => (
-      'step_edit.error.invalid_step',
-      'Revisa los campos del paso: el mensaje no puede estar vacío.',
-    ),
+  static (String key, String copy) _resolve(FlowsFailure f, bool isCT) =>
+      switch (f) {
+    FlowsInvalidStepFailure() => isCT
+        ? (
+            'step_edit.error.invalid_step.conditional',
+            'Revisa horario o destinos del condicional.',
+          )
+        : (
+            'step_edit.error.invalid_step',
+            'Revisa los campos del paso: el mensaje no puede estar vacío.',
+          ),
     FlowsForbiddenFailure() => (
       'step_edit.error.forbidden',
       'Tu rol no permite editar pasos. Pide acceso a un admin.',
