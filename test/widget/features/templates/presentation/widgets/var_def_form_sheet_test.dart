@@ -334,26 +334,11 @@ void main() {
     ) async {
       await tester.pumpWidget(host(existingNames: <String>{}));
 
-      expect(
-        find.byKey(const Key('var_def_form.type.text')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('var_def_form.type.label')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('var_def_form.type.image')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('var_def_form.type.video')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('var_def_form.type.audio')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('var_def_form.type.text')), findsOneWidget);
+      expect(find.byKey(const Key('var_def_form.type.label')), findsOneWidget);
+      expect(find.byKey(const Key('var_def_form.type.image')), findsOneWidget);
+      expect(find.byKey(const Key('var_def_form.type.video')), findsOneWidget);
+      expect(find.byKey(const Key('var_def_form.type.audio')), findsOneWidget);
       expect(
         find.byKey(const Key('var_def_form.type.document')),
         findsOneWidget,
@@ -367,22 +352,21 @@ void main() {
       expect(find.text('Documento'), findsOneWidget);
     });
 
-    testWidgets(
-      'crear: default es text — el chip text arranca seleccionado',
-      (tester) async {
-        await tester.pumpWidget(host(existingNames: <String>{}));
+    testWidgets('crear: default es text — el chip text arranca seleccionado', (
+      tester,
+    ) async {
+      await tester.pumpWidget(host(existingNames: <String>{}));
 
-        final chip = tester.widget<ChoiceChip>(
-          find.byKey(const Key('var_def_form.type.text')),
-        );
-        expect(chip.selected, isTrue);
+      final chip = tester.widget<ChoiceChip>(
+        find.byKey(const Key('var_def_form.type.text')),
+      );
+      expect(chip.selected, isTrue);
 
-        final notSel = tester.widget<ChoiceChip>(
-          find.byKey(const Key('var_def_form.type.audio')),
-        );
-        expect(notSel.selected, isFalse);
-      },
-    );
+      final notSel = tester.widget<ChoiceChip>(
+        find.byKey(const Key('var_def_form.type.audio')),
+      );
+      expect(notSel.selected, isFalse);
+    });
 
     testWidgets(
       'crear: tap chip cambia la selección y el submit usa el tipo elegido',
@@ -589,11 +573,16 @@ void main() {
     testWidgets('con teclado abierto, padding inferior cubre el teclado', (
       tester,
     ) async {
-      // 100dp es suficiente para verificar max(viewInsets, viewPadding)
-      // sin colapsar la Column del sheet en el viewport por default
-      // del test (600dp de alto). Lo que se valida es que viewInsets
-      // domina sobre viewPadding cuando el teclado abre — el valor
-      // exacto del keyboard real (~280) es irrelevante para la lógica.
+      // Subir el alto del viewport para que el sheet (3 fields + chip
+      // picker + botón Guardar) quepa con viewInsets.bottom > 0. El
+      // valor exacto del keyboard real (~280) es irrelevante para la
+      // lógica — sólo se valida que viewInsets domina sobre viewPadding
+      // cuando el teclado abre.
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         hostWithInsets(viewInsetsBottom: 100, viewPaddingBottom: 32),
       );
