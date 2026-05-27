@@ -128,6 +128,51 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Loaded agrupa header + acciones en AppCard con key contractual',
+    (tester) async {
+      when(() => bloc.state).thenReturn(const TemplateDetailLoaded(_tpl));
+
+      await tester.pumpWidget(host());
+
+      final cardFinder = find.byKey(const Key('template_detail.card.header'));
+      expect(cardFinder, findsOneWidget);
+      // Avatar + name viven dentro de la header card.
+      expect(
+        find.descendant(of: cardFinder, matching: find.text('Soporte')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: cardFinder, matching: find.byType(AppAvatar)),
+        findsOneWidget,
+      );
+      // La pill de versión y la pill de estado IA están en el header.
+      expect(
+        find.descendant(
+          of: cardFinder,
+          matching: find.widgetWithText(AppPill, 'v3'),
+        ),
+        findsOneWidget,
+      );
+      // Las acciones (Editar plantilla / Crear bot) viven en el header,
+      // no en el bottom-stack del scroll.
+      expect(
+        find.descendant(
+          of: cardFinder,
+          matching: find.byKey(const Key('template_detail.edit_button')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: cardFinder,
+          matching: find.byKey(const Key('template_detail.create_bot_button')),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('Loaded muestra versión como AppPill.outline', (tester) async {
     when(() => bloc.state).thenReturn(const TemplateDetailLoaded(_tpl));
 
