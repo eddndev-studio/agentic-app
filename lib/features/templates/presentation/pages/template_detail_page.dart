@@ -148,9 +148,17 @@ class _LoadedView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppTokens.sp6),
-          const _SectionTitle('Disparadores'),
-          const SizedBox(height: AppTokens.sp3),
-          const TriggersSection(),
+          AppCard(
+            key: const Key('template_detail.card.triggers'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const <Widget>[
+                _SectionTitle('Disparadores'),
+                SizedBox(height: AppTokens.sp3),
+                TriggersSection(),
+              ],
+            ),
+          ),
           const SizedBox(height: AppTokens.sp6),
           const _SectionTitle('Variables'),
           const SizedBox(height: AppTokens.sp3),
