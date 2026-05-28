@@ -39,7 +39,6 @@ import '../../features/templates/presentation/pages/template_create_page.dart';
 import '../../features/templates/presentation/pages/template_detail_page.dart';
 import '../../features/templates/presentation/pages/template_edit_page.dart';
 import '../../features/triggers/domain/repositories/triggers_repository.dart';
-import '../../features/triggers/presentation/bloc/triggers_bloc.dart';
 
 /// Rutas de la app. La decisión de a qué ruta ir vive en el `redirect`
 /// del GoRouter: lee el estado del `AuthBloc` global y mapea a `/`,
@@ -205,11 +204,6 @@ class AppRouter {
                     FlowsBloc(repo: _flowsRepo, templateId: id)
                       ..add(const FlowsLoadRequested()),
               ),
-              BlocProvider<TriggersBloc>(
-                create: (_) =>
-                    TriggersBloc(repo: _triggersRepo, templateId: id)
-                      ..add(const TriggersLoadRequested()),
-              ),
             ],
             child: Scaffold(
               appBar: AppBar(title: const Text('Detalle de plantilla')),
@@ -283,22 +277,25 @@ class AppRouter {
         path: '/flows/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return MultiBlocProvider(
-            providers: <BlocProvider<dynamic>>[
-              BlocProvider<FlowDetailBloc>(
-                create: (_) =>
-                    FlowDetailBloc(repo: _flowsRepo, id: id)
-                      ..add(const FlowDetailLoadRequested()),
+          return RepositoryProvider<TriggersRepository>.value(
+            value: _triggersRepo,
+            child: MultiBlocProvider(
+              providers: <BlocProvider<dynamic>>[
+                BlocProvider<FlowDetailBloc>(
+                  create: (_) =>
+                      FlowDetailBloc(repo: _flowsRepo, id: id)
+                        ..add(const FlowDetailLoadRequested()),
+                ),
+                BlocProvider<FlowStepsBloc>(
+                  create: (_) =>
+                      FlowStepsBloc(repo: _flowsRepo, flowId: id)
+                        ..add(const FlowStepsLoadRequested()),
+                ),
+              ],
+              child: Scaffold(
+                appBar: AppBar(title: const Text('Detalle de flujo')),
+                body: const FlowDetailPage(),
               ),
-              BlocProvider<FlowStepsBloc>(
-                create: (_) =>
-                    FlowStepsBloc(repo: _flowsRepo, flowId: id)
-                      ..add(const FlowStepsLoadRequested()),
-              ),
-            ],
-            child: Scaffold(
-              appBar: AppBar(title: const Text('Detalle de flujo')),
-              body: const FlowDetailPage(),
             ),
           );
         },

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:agentic/core/design/app_design_theme.dart';
 import 'package:agentic/core/design/tokens.dart';
 import 'package:agentic/core/design/widgets/app_button.dart';
@@ -8,6 +10,9 @@ import 'package:agentic/features/flows/domain/failures/flows_failure.dart';
 import 'package:agentic/features/flows/presentation/bloc/flow_detail_bloc.dart';
 import 'package:agentic/features/flows/presentation/bloc/flow_steps_bloc.dart';
 import 'package:agentic/features/flows/presentation/pages/flow_detail_page.dart';
+import 'package:agentic/features/triggers/domain/entities/trigger.dart';
+import 'package:agentic/features/triggers/domain/repositories/triggers_repository.dart';
+import 'package:agentic/features/triggers/presentation/widgets/flow_triggers_tab.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,6 +24,8 @@ class _MockDetailBloc extends MockBloc<FlowDetailEvent, FlowDetailState>
 
 class _MockStepsBloc extends MockBloc<FlowStepsEvent, FlowStepsState>
     implements FlowStepsBloc {}
+
+class _MockTriggersRepo extends Mock implements TriggersRepository {}
 
 const _flow = flows.Flow(
   id: 'f1',
@@ -39,22 +46,32 @@ void main() {
 
   late _MockDetailBloc detailBloc;
   late _MockStepsBloc stepsBloc;
+  late _MockTriggersRepo triggersRepo;
 
   setUp(() {
     detailBloc = _MockDetailBloc();
     stepsBloc = _MockStepsBloc();
+    triggersRepo = _MockTriggersRepo();
     when(() => detailBloc.state).thenReturn(const FlowDetailLoading());
     when(() => stepsBloc.state).thenReturn(const FlowStepsLoading());
+    // Mantiene el TriggersBloc (creado lazy por FlowTriggersTab) en
+    // Loading sin timers vivos al cerrar el test.
+    when(
+      () => triggersRepo.listTriggers(any()),
+    ).thenAnswer((_) => Completer<List<Trigger>>().future);
   });
 
   Widget host() => MaterialApp(
     theme: AppDesignTheme.dark(),
-    home: MultiBlocProvider(
-      providers: <BlocProvider<dynamic>>[
-        BlocProvider<FlowDetailBloc>.value(value: detailBloc),
-        BlocProvider<FlowStepsBloc>.value(value: stepsBloc),
-      ],
-      child: const Scaffold(body: FlowDetailPage()),
+    home: RepositoryProvider<TriggersRepository>.value(
+      value: triggersRepo,
+      child: MultiBlocProvider(
+        providers: <BlocProvider<dynamic>>[
+          BlocProvider<FlowDetailBloc>.value(value: detailBloc),
+          BlocProvider<FlowStepsBloc>.value(value: stepsBloc),
+        ],
+        child: const Scaffold(body: FlowDetailPage()),
+      ),
     ),
   );
 
@@ -435,9 +452,7 @@ void main() {
     },
   );
 
-  testWidgets('Tap en tab Disparadores muestra placeholder "Próximamente"', (
-    tester,
-  ) async {
+  testWidgets('Tap en tab Disparadores monta FlowTriggersTab', (tester) async {
     when(() => detailBloc.state).thenReturn(
       const FlowDetailLoaded(_flow, <flows.Flow>[], siblingsFailed: false),
     );
@@ -446,17 +461,31 @@ void main() {
     ).thenReturn(const FlowStepsLoaded(<fdom.Step>[]));
 
     await tester.pumpWidget(host());
+    // Sanity: el shell Loaded rendea el header del flow.
+    expect(find.text('Bienvenida'), findsOneWidget);
+
     await tester.tap(
       find.descendant(
         of: find.byType(TabBar),
         matching: find.text('Disparadores'),
       ),
     );
-    await tester.pumpAndSettle();
+    // Avanza la animación del TabController por frames cortos sin
+    // entrar al loop infinito de pumpAndSettle (el spinner del body
+    // nunca se detiene). 100ms × 5 = 500ms cubre la transición
+    // estándar de TabBarView (~300ms).
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
 
+    // El tab está montado: el FlowTriggersTab es child del TabBarView
+    // y el body construye su TriggersBloc; la mock-repo nunca completa
+    // ⇒ estado Loading + spinner con key flow_triggers.loading.
+    expect(find.byType(FlowTriggersTab), findsOneWidget);
+    expect(find.byKey(const Key('flow_triggers.loading')), findsOneWidget);
     expect(
       find.byKey(const Key('flow_detail.tab.triggers.coming_soon')),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
