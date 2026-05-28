@@ -19,17 +19,29 @@ import '../bloc/triggers_bloc.dart';
 /// — el backend preserva `flowId` del trigger existente, mover un
 /// trigger entre flows no está habilitado.
 ///
+/// `scopedFlow != null` ⇒ el sheet vive dentro del editor de un flujo
+/// concreto: el dropdown desaparece, el id se toma de `scopedFlow.id`
+/// al crear, y la línea informativa muestra `scopedFlow.name` sin
+/// consultar al `FlowsBloc` (que en ese scope no existe). Caller
+/// responsable de pasar el Flow del contexto vigente.
+///
 /// Discriminación por modo:
 /// - TEXT: keyword + matchType + scope.
 /// - LABEL: labelId + labelAction (scope no aplica en LABEL; el
 ///   trigger se evalúa al cambiar la SessionLabel internamente).
 class TriggerEditSheet extends StatefulWidget {
-  const TriggerEditSheet({super.key, this.editing});
+  const TriggerEditSheet({super.key, this.editing, this.scopedFlow});
 
   /// `null` ⇒ modo creación. No-null ⇒ modo edición; el sheet se
   /// pre-llena con los valores del trigger y el submit hace PUT
   /// replace-completo (no diff: ver `TriggersUpdateRequested`).
   final Trigger? editing;
+
+  /// Cuando se monta dentro del editor de un flujo concreto, el flow
+  /// destino es fijo: el sheet salta el lookup de `FlowsBloc` y toma
+  /// id/nombre directo del entity pasado. `null` ⇒ scope template
+  /// (dropdown en create, lookup en edit).
+  final fdom.Flow? scopedFlow;
 
   @override
   State<TriggerEditSheet> createState() => _TriggerEditSheetState();
@@ -63,7 +75,10 @@ class _TriggerEditSheetState extends State<TriggerEditSheet> {
     _labelAction = ed?.labelAction ?? LabelAction.add;
     _scope = ed?.scope ?? TriggerScope.both;
     _isActive = ed?.isActive ?? true;
-    _flowId = ed?.flowId;
+    // Cuando hay scopedFlow, el id viene del scope (no del editing ni
+    // del dropdown del operador). En create scope-libre lo elige el
+    // dropdown; en edit scope-libre lo trae el trigger existente.
+    _flowId = widget.scopedFlow?.id ?? ed?.flowId;
     _keywordCtrl.addListener(_onTextChanged);
     _labelIdCtrl.addListener(_onTextChanged);
   }
@@ -247,12 +262,15 @@ class _TriggerEditSheetState extends State<TriggerEditSheet> {
                   ),
                 ],
                 const SizedBox(height: AppTokens.sp4),
-                _FlowSelector(
-                  editing: widget.editing,
-                  selectedFlowId: _flowId,
-                  enabled: !isMutating,
-                  onSelected: (id) => setState(() => _flowId = id),
-                ),
+                if (widget.scopedFlow != null)
+                  _FixedFlowLine(flow: widget.scopedFlow!)
+                else
+                  _FlowSelector(
+                    editing: widget.editing,
+                    selectedFlowId: _flowId,
+                    enabled: !isMutating,
+                    onSelected: (id) => setState(() => _flowId = id),
+                  ),
                 const SizedBox(height: AppTokens.sp4),
                 Row(
                   key: const Key('trigger_edit.active_switch'),
@@ -558,6 +576,27 @@ class _FlowSelector extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// Línea informativa del flow del scope cuando el sheet vive dentro
+/// del editor de un flujo concreto. Reemplaza al `_FlowSelector` —
+/// no consulta `FlowsBloc` (no está en el scope) y no expone control
+/// interactivo: el destino es el editor mismo.
+class _FixedFlowLine extends StatelessWidget {
+  const _FixedFlowLine({required this.flow});
+
+  final fdom.Flow flow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '→ Flujo: ${flow.name}',
+      key: const Key('trigger_edit.flow_fixed'),
+      style: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(color: AppTokens.text2),
     );
   }
 }

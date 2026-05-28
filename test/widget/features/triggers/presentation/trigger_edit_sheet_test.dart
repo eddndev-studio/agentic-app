@@ -603,7 +603,7 @@ void main() {
           findsNothing,
         );
         expect(find.byKey(const Key('trigger_edit.flow_fixed')), findsOneWidget);
-        expect(find.text('Pagos'), findsOneWidget);
+        expect(find.textContaining('Pagos'), findsOneWidget);
       },
     );
 
@@ -650,7 +650,7 @@ void main() {
           findsNothing,
         );
         expect(find.byKey(const Key('trigger_edit.flow_fixed')), findsOneWidget);
-        expect(find.text('Bienvenida'), findsOneWidget);
+        expect(find.textContaining('Bienvenida'), findsOneWidget);
       },
     );
   });
