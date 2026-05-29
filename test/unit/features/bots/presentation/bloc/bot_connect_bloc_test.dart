@@ -49,8 +49,9 @@ void main() {
       return BotConnectBloc(repo: repo, botId: 'b1');
     },
     act: (bloc) => bloc.add(const BotConnectStarted()),
-    expect: () =>
-        const <BotConnectState>[BotConnectFailed(BotsServerFailure())],
+    expect: () => const <BotConnectState>[
+      BotConnectFailed(BotsServerFailure()),
+    ],
   );
 
   blocTest<BotConnectBloc, BotConnectState>(
@@ -71,9 +72,7 @@ void main() {
   blocTest<BotConnectBloc, BotConnectState>(
     'PairingRequested con fallo de start → [starting, failed] conservando el enlace',
     build: () {
-      when(
-        () => repo.startSession('b1'),
-      ).thenThrow(const BotsServerFailure());
+      when(() => repo.startSession('b1')).thenThrow(const BotsServerFailure());
       return BotConnectBloc(repo: repo, botId: 'b1');
     },
     seed: () => BotConnectReady(_link),
