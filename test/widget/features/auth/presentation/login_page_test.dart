@@ -1,10 +1,10 @@
-import 'package:agentic/core/design/app_design_theme.dart';
-import 'package:agentic/core/design/tokens.dart';
-import 'package:agentic/core/design/widgets/app_button.dart';
-import 'package:agentic/core/design/widgets/app_text_field.dart';
-import 'package:agentic/features/auth/domain/entities/auth_tokens.dart';
-import 'package:agentic/features/auth/presentation/bloc/login_bloc.dart';
-import 'package:agentic/features/auth/presentation/pages/login_page.dart';
+import 'package:ataulfo/core/design/app_design_theme.dart';
+import 'package:ataulfo/core/design/tokens.dart';
+import 'package:ataulfo/core/design/widgets/app_button.dart';
+import 'package:ataulfo/core/design/widgets/app_text_field.dart';
+import 'package:ataulfo/features/auth/domain/entities/auth_tokens.dart';
+import 'package:ataulfo/features/auth/presentation/bloc/login_bloc.dart';
+import 'package:ataulfo/features/auth/presentation/pages/login_page.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

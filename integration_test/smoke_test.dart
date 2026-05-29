@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:agentic/main.dart' as app;
+import 'package:ataulfo/main.dart' as app;
 
 /// Smoke E2E del cliente Flutter contra un backend agentic-go real.
 ///
