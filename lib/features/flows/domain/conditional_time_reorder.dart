@@ -29,7 +29,10 @@ import 'entities/step.dart';
 /// Limitación: solo protege reorders hechos desde este cliente. El wire sigue
 /// siendo posicional, así que un reorder fuera de banda (otro cliente, API
 /// directa, seed) derivaría igual; el fix robusto es migrar el wire a
-/// referencias por id.
+/// referencias por id. Además, el remap re-serializa con `toJsonString`, que
+/// reconstruye el blob solo desde los campos modelados (tz/windows/destinos):
+/// si el backend añadiera una clave nueva al metadata CT, reordenar la
+/// perdería. Hoy sin impacto — la entidad es el shape completo conocido.
 Map<String, String> remapConditionalTargetsOnReorder(
   List<Step> snapshot,
   List<String> newIdOrder,
