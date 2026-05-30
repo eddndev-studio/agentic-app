@@ -66,4 +66,72 @@ void main() {
     await tester.pumpWidget(host());
     expect(find.byType(InkWell), findsOneWidget);
   });
+
+  testWidgets('GROUP sin displayName cae a "Grupo"', (tester) async {
+    when(() => bloc.state).thenReturn(
+      const ProfileLoaded(
+        ChatProfile(
+          chatLid: 'g@g.us',
+          isGroup: true,
+          phone: null,
+          displayName: null,
+          photoUrl: null,
+          isArchived: false,
+          isPinned: false,
+          isMarkedUnread: false,
+          mutedUntil: null,
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    expect(find.text('Grupo'), findsOneWidget);
+  });
+
+  testWidgets('DM sin displayName cae al phone', (tester) async {
+    when(() => bloc.state).thenReturn(
+      const ProfileLoaded(
+        ChatProfile(
+          chatLid: 'lid-dm',
+          isGroup: false,
+          phone: '521555',
+          displayName: null,
+          photoUrl: null,
+          isArchived: false,
+          isPinned: false,
+          isMarkedUnread: false,
+          mutedUntil: null,
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    expect(find.text('521555'), findsOneWidget);
+  });
+
+  testWidgets('el header se anuncia como botón con hint "Ver perfil"', (
+    tester,
+  ) async {
+    when(() => bloc.state).thenReturn(
+      const ProfileLoaded(
+        ChatProfile(
+          chatLid: 'lid-dm',
+          isGroup: false,
+          phone: '521555',
+          displayName: 'Alice',
+          photoUrl: null,
+          isArchived: false,
+          isPinned: false,
+          isMarkedUnread: false,
+          mutedUntil: null,
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    final sem = tester.widget<Semantics>(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.hint == 'Ver perfil',
+      ),
+    );
+    expect(sem.properties.button, isTrue);
+    expect(sem.properties.label, 'Alice');
+  });
 }
