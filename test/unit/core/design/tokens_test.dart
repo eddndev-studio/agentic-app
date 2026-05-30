@@ -108,6 +108,19 @@ void main() {
     });
   });
 
+  group('AppTokens — section accents', () {
+    test('chatAccent es #25D366 (verde brillante de la sección de chat)', () {
+      expect(AppTokens.chatAccent, const Color(0xFF25D366));
+    });
+
+    test('chatAccent es distinto de la marca y de success', () {
+      // Rol propio: distingue la superficie de conversaciones del amarillo de
+      // marca, y no es el teal de éxito (otra primitiva, otro significado).
+      expect(AppTokens.chatAccent, isNot(AppTokens.primary));
+      expect(AppTokens.chatAccent, isNot(AppTokens.success));
+    });
+  });
+
   group('AppTokens — radii (en px)', () {
     test('button y field son pill (full=999); chip/sm=8; card=20', () {
       expect(AppTokens.radiusPill, 999.0);

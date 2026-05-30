@@ -124,11 +124,13 @@ void main() {
       );
     });
 
-    testWidgets('READ → doble palomita (done_all) amarilla', (tester) async {
+    testWidgets('READ → doble palomita (done_all) verde de sección', (
+      tester,
+    ) async {
       await pumpStatus(tester, MessageStatus.read);
       expect(
         tester.widget<Icon>(find.byIcon(Icons.done_all)).color,
-        AppTokens.primary,
+        AppTokens.chatAccent,
       );
     });
 
