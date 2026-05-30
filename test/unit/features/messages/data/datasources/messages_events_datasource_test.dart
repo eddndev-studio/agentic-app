@@ -78,7 +78,7 @@ void main() {
       ),
     );
 
-    final got = await ds.threadEvents('b1').toList();
+    final got = await ds.connectOnce('b1').toList();
 
     expect(got, hasLength(2));
     expect(got[0].externalId, 'in1');
@@ -96,7 +96,7 @@ void main() {
       ),
     );
 
-    final got = await ds.threadEvents('b1').toList();
+    final got = await ds.connectOnce('b1').toList();
 
     expect(got, hasLength(1));
     expect(got.single.externalId, 'out1');
@@ -110,7 +110,7 @@ void main() {
       ),
     );
 
-    final got = await ds.threadEvents('b1').toList();
+    final got = await ds.connectOnce('b1').toList();
 
     expect(got, hasLength(1));
     expect(got.single.externalId, 'ok');
@@ -118,7 +118,7 @@ void main() {
 
   test('pide /events/stream con botId en query', () async {
     stub(sse(''));
-    await ds.threadEvents('b1').toList();
+    await ds.connectOnce('b1').toList();
 
     final captured = verify(
       () => dio.get<ResponseBody>(

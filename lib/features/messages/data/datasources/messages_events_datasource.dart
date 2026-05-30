@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import '../../../../core/network/sse/reconnecting_stream.dart';
 import '../../../../core/network/sse/sse_parser.dart';
 import '../../domain/entities/message.dart';
 import '../dto/message_dto.dart';
@@ -15,11 +16,12 @@ abstract interface class MessagesEventsDatasource {
   /// Mensajes en vivo del bot. El backend scopea por `?botId=`; el filtrado
   /// por conversación (chatLid) lo hace el consumidor (el hilo abierto).
   ///
-  /// Best-effort: al cancelar la suscripción se cierra la conexión; un error
-  /// de transporte cierra el stream (sin reconexión automática en v1 — la
-  /// verdad autoritativa vive en el `GET .../messages` por HTTP, y el
-  /// pull-to-refresh recupera). Un frame malformado se omite sin derribar el
-  /// stream.
+  /// Perdurable: si la conexión cae (error de transporte o cierre del proxy) se
+  /// reconecta sola con backoff hasta que el consumidor cancela la suscripción.
+  /// Un frame malformado se omite sin derribar el stream. HUECO CONOCIDO: la
+  /// reconexión reanuda la entrega EN VIVO; no rellena los mensajes emitidos
+  /// durante el corte (el backend no reproduce historia). La verdad
+  /// autoritativa vive en el `GET .../messages` por HTTP; un refresh recupera.
   Stream<Message> threadEvents(String botId);
 }
 
@@ -39,7 +41,14 @@ class DioMessagesEventsDatasource implements MessagesEventsDatasource {
   };
 
   @override
-  Stream<Message> threadEvents(String botId) async* {
+  Stream<Message> threadEvents(String botId) =>
+      reconnectingStream<Message>(() => connectOnce(botId));
+
+  /// Una sola conexión SSE: abre el stream, parsea/filtra/mapea los frames de
+  /// mensaje y termina cuando el backend cierra o falla. `threadEvents` la
+  /// envuelve con reconexión; aislarla mantiene esta lógica (parseo/scope)
+  /// determinista y testeable sin el loop de reconexión.
+  Stream<Message> connectOnce(String botId) async* {
     // CancelToken para cerrar la conexión SSE al cancelar la suscripción del
     // stream (el `finally` corre cuando el generador se cancela).
     final cancel = CancelToken();
