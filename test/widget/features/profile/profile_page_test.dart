@@ -80,4 +80,108 @@ void main() {
     await tester.pump();
     verify(() => bloc.add(const ProfileLoadRequested())).called(1);
   });
+
+  testWidgets('GROUP usa "Grupo" como título y subtítulo', (tester) async {
+    when(() => bloc.state).thenReturn(
+      const ProfileLoaded(
+        ChatProfile(
+          chatLid: 'g@g.us',
+          isGroup: true,
+          phone: null,
+          displayName: null,
+          photoUrl: null,
+          isArchived: false,
+          isPinned: false,
+          isMarkedUnread: false,
+          mutedUntil: null,
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    expect(find.text('Grupo'), findsWidgets);
+  });
+
+  testWidgets('DM sin displayName muestra el phone como título', (
+    tester,
+  ) async {
+    when(() => bloc.state).thenReturn(
+      const ProfileLoaded(
+        ChatProfile(
+          chatLid: 'lid',
+          isGroup: false,
+          phone: '521555',
+          displayName: null,
+          photoUrl: null,
+          isArchived: false,
+          isPinned: false,
+          isMarkedUnread: false,
+          mutedUntil: null,
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    // En un DM sin nombre el phone es a la vez título y subtítulo del perfil.
+    expect(find.text('521555'), findsNWidgets(2));
+  });
+
+  testWidgets('No leído y Archivado se pintan como pills', (tester) async {
+    when(() => bloc.state).thenReturn(
+      const ProfileLoaded(
+        ChatProfile(
+          chatLid: 'lid',
+          isGroup: false,
+          phone: '521555',
+          displayName: 'Alice',
+          photoUrl: null,
+          isArchived: true,
+          isPinned: false,
+          isMarkedUnread: true,
+          mutedUntil: null,
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    expect(find.widgetWithText(AppPill, 'No leído'), findsOneWidget);
+    expect(find.widgetWithText(AppPill, 'Archivado'), findsOneWidget);
+  });
+
+  testWidgets('mute vigente muestra la pill Silenciado', (tester) async {
+    when(() => bloc.state).thenReturn(
+      ProfileLoaded(
+        ChatProfile(
+          chatLid: 'lid',
+          isGroup: false,
+          phone: '521555',
+          displayName: 'Alice',
+          photoUrl: null,
+          isArchived: false,
+          isPinned: false,
+          isMarkedUnread: false,
+          mutedUntil: DateTime.now().add(const Duration(days: 1)),
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    expect(find.widgetWithText(AppPill, 'Silenciado'), findsOneWidget);
+  });
+
+  testWidgets('mute expirado NO muestra la pill Silenciado', (tester) async {
+    when(() => bloc.state).thenReturn(
+      ProfileLoaded(
+        ChatProfile(
+          chatLid: 'lid',
+          isGroup: false,
+          phone: '521555',
+          displayName: 'Alice',
+          photoUrl: null,
+          isArchived: false,
+          isPinned: false,
+          isMarkedUnread: false,
+          mutedUntil: DateTime.now().subtract(const Duration(days: 1)),
+        ),
+      ),
+    );
+    await tester.pumpWidget(host());
+    expect(find.widgetWithText(AppPill, 'Silenciado'), findsNothing);
+  });
 }
