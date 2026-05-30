@@ -277,14 +277,15 @@ String _hhmm(int timestampMs) {
 }
 
 /// Tick de entrega estilo mensajería: ✓ enviado, ✓✓ entregado (gris), ✓✓ leído
-/// (amarillo del brand), ⚠ falló (rojo). El receipt en vivo (`message.status`)
-/// repinta este ícono solo. Conserva la etiqueta de texto como `semanticLabel`
-/// para que un lector de pantalla anuncie "Entregado/Leído", no un glifo.
+/// (verde de la sección de chat), ⚠ falló (rojo). El receipt en vivo
+/// (`message.status`) repinta este ícono solo. Conserva la etiqueta de texto
+/// como `semanticLabel` para que un lector de pantalla anuncie "Entregado/
+/// Leído", no un glifo.
 Widget _statusTick(MessageStatus s) {
   final (IconData icon, Color color) = switch (s) {
     MessageStatus.sent => (Icons.done, AppTokens.text2),
     MessageStatus.delivered => (Icons.done_all, AppTokens.text2),
-    MessageStatus.read => (Icons.done_all, AppTokens.primary),
+    MessageStatus.read => (Icons.done_all, AppTokens.chatAccent),
     MessageStatus.failed => (Icons.error_outline, AppTokens.danger),
   };
   return Icon(icon, size: 16, color: color, semanticLabel: _statusLabel(s));

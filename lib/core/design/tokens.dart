@@ -39,6 +39,11 @@ class _Teal {
   static const Color s500 = Color(0xFF00A884);
 }
 
+class _Green {
+  const _Green._();
+  static const Color s500 = Color(0xFF25D366);
+}
+
 class _Red {
   const _Red._();
   static const Color s400 = Color(0xFFF15C6D);
@@ -114,6 +119,15 @@ class AppTokens {
     ],
     stops: const <double>[0.0, 0.45, 0.9],
   );
+
+  // ── Section accents ───────────────────────────────────────────────────────
+  /// Verde brillante que marca la superficie de **conversaciones/chat**: la
+  /// distingue del amarillo de marca sin reemplazarlo. Uso *ligero* y por
+  /// disciplina de consumo (como cualquier token): solo detalles de esa sección
+  /// —tick de leído, barra de cita de respuesta, enlaces/acciones del hilo—, no
+  /// fills ni chrome. Rol propio: NO es [success] (`teal/500`, otra primitiva,
+  /// significa éxito), aunque ambos sean verdosos.
+  static const Color chatAccent = _Green.s500;
 
   // ── Text ────────────────────────────────────────────────────────────────
   static const Color text1 = _Gray.s100;
